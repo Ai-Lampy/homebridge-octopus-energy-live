@@ -1,8 +1,8 @@
 {
   "name": "homebridge-octopus-energy-live",
   "displayName": "Octopus Energy Live",
-  "version": "0.1.0",
-  "description": "Display live Octopus Energy smart meter power and energy in Apple Home through Homebridge Matter",
+  "version": "0.2.0",
+  "description": "Display Octopus Energy electricity and gas smart meter data through Homebridge",
   "author": {
     "name": "lxmitch",
     "url": "https://github.com/Ai-Lampy"
@@ -34,6 +34,7 @@
     "octopus",
     "energy",
     "electricity",
+    "gas",
     "homekit",
     "octopus-energy",
     "live-energy",

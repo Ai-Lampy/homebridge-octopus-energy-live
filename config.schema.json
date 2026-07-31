@@ -36,12 +36,12 @@
       },
       "import": {
         "type": "object",
-        "title": "Import Meter",
+        "title": "Electricity Meter",
         "properties": {
           "name": {
             "type": "string",
             "title": "Accessory Name",
-            "default": "Octopus Import"
+            "default": "Electricity Meter"
           },
           "mpan": {
             "type": "string",
@@ -53,6 +53,39 @@
           }
         },
         "required": ["mpan", "meterSerial"],
+        "additionalProperties": false
+      },
+      "gas": {
+        "type": "object",
+        "title": "Gas Meter (Optional)",
+        "description": "Octopus gas data is published in half-hour intervals. Gas uses an MPRN, not an MPAN.",
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Accessory Name",
+            "default": "Gas Meter"
+          },
+          "mprn": {
+            "type": "string",
+            "title": "MPRN",
+            "description": "Meter Point Reference Number for the gas supply."
+          },
+          "meterSerial": {
+            "type": "string",
+            "title": "Meter Serial"
+          },
+          "unit": {
+            "type": "string",
+            "title": "Consumption Unit",
+            "description": "Automatic uses the Octopus account data. Select a unit manually only if automatic detection fails. SMETS1 gas is normally kWh; SMETS2 gas is normally cubic metres.",
+            "default": "auto",
+            "oneOf": [
+              { "title": "Automatic (recommended)", "enum": ["auto"] },
+              { "title": "Cubic metres (m³ / SMETS2)", "enum": ["m3"] },
+              { "title": "Kilowatt-hours (kWh / SMETS1)", "enum": ["kWh"] }
+            ]
+          }
+        },
         "additionalProperties": false
       },
       "export": {

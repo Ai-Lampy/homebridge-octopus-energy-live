@@ -1,0 +1,67 @@
+name: Bug report
+description: Report reproducible incorrect behaviour in Octopus Energy Live.
+title: "[Bug]: "
+labels:
+  - bug
+body:
+  - type: markdown
+    attributes:
+      value: Before submitting, remove API keys, account numbers, MPANs, meter serials, device IDs, and other personal information.
+  - type: input
+    id: plugin-version
+    attributes:
+      label: Plugin version
+      placeholder: 0.1.0
+    validations:
+      required: true
+  - type: input
+    id: homebridge-version
+    attributes:
+      label: Homebridge version
+      placeholder: 2.2.1
+    validations:
+      required: true
+  - type: input
+    id: node-version
+    attributes:
+      label: Node.js version
+      placeholder: 24.x
+    validations:
+      required: true
+  - type: dropdown
+    id: data-source
+    attributes:
+      label: Data source
+      options:
+        - Home Mini live telemetry
+        - Half-hourly REST fallback
+        - Unknown
+    validations:
+      required: true
+  - type: textarea
+    id: problem
+    attributes:
+      label: What happened?
+      description: Include expected and actual behaviour.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Reproduction steps
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Redacted Homebridge logs
+      render: shell
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Privacy checks
+      options:
+        - label: I removed all credentials and household identifiers.
+          required: true
+        - label: I searched existing issues before submitting.
+          required: true

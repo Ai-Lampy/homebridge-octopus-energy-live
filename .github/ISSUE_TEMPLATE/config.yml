@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Homebridge community support
+    url: https://discord.gg/homebridge
+    about: Ask general Homebridge installation and networking questions.
+  - name: Octopus Energy API documentation
+    url: https://developer.octopus.energy/
+    about: Check the official API documentation and service capabilities.

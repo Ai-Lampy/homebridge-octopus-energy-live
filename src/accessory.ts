@@ -1,7 +1,7 @@
 import { Characteristic, CharacteristicValue, PlatformAccessory, Service, WithUUID } from 'homebridge';
 import { OctopusEnergyLivePlatform } from './platform';
 import { OctopusApiClient } from './octopusApi';
-import { kWhToMatterMilliwattHours, livePowerForSide, wattsToMatterMilliwatts } from './energy';
+import { buildMatterCumulativeEnergyMeasurement, livePowerForSide, wattsToMatterMilliwatts } from './energy';
 
 export type MeterSide = 'import' | 'export';
 
@@ -16,7 +16,6 @@ interface MeterReading {
   watts: number;
   totalKWh: number;
   readAt?: Date;
-  periodStart?: Date;
   isLifetimeTotal: boolean;
 }
 
@@ -136,7 +135,6 @@ export class OctopusMeterAccessory {
           watts,
           totalKWh: interval.totalKWh,
           readAt: telemetry.readAt ? new Date(telemetry.readAt) : interval.periodEnd,
-          periodStart: interval.periodStart,
           isLifetimeTotal: false,
         };
       } catch (error) {
@@ -151,7 +149,6 @@ export class OctopusMeterAccessory {
       watts: interval.watts,
       totalKWh: interval.totalKWh,
       readAt: interval.periodEnd,
-      periodStart: interval.periodStart,
       isLifetimeTotal: false,
     };
   }
@@ -173,15 +170,11 @@ export class OctopusMeterAccessory {
       { activePower: wattsToMatterMilliwatts(reading.watts) },
     );
 
-    const energy = {
-      energy: kWhToMatterMilliwattHours(reading.totalKWh),
-      ...(!reading.isLifetimeTotal && reading.periodStart
-        ? { startTimestamp: Math.floor(reading.periodStart.getTime() / 1000) }
-        : {}),
-      ...(reading.readAt && !Number.isNaN(reading.readAt.getTime())
-        ? { endTimestamp: Math.floor(reading.readAt.getTime() / 1000) }
-        : {}),
-    };
+    const energy = buildMatterCumulativeEnergyMeasurement(
+      reading.totalKWh,
+      reading.readAt,
+      reading.isLifetimeTotal,
+    );
     const attribute = this.meter.side === 'import' ? 'cumulativeEnergyImported' : 'cumulativeEnergyExported';
     await matter.updateAccessoryState(
       this.matterUuid,

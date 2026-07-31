@@ -1,0 +1,82 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "pluginAlias": "OctopusEnergyLive",
+  "pluginType": "platform",
+  "singular": false,
+  "strictValidation": false,
+  "schema": {
+    "type": "object",
+    "properties": {
+      "name": {
+        "type": "string",
+        "title": "Platform Name",
+        "default": "Octopus Energy Live"
+      },
+      "apiKey": {
+        "type": "string",
+        "format": "password",
+        "title": "Octopus API Key",
+        "description": "Create an API key in your Octopus Energy account. The Homebridge UI stores this value in its plugin configuration."
+      },
+      "accountNumber": {
+        "type": "string",
+        "title": "Octopus Account Number (recommended for live data)",
+        "description": "Your account number in A-12345678 format. Used to discover the Home Mini electricity meter device ID automatically."
+      },
+      "pollSeconds": {
+        "type": "number",
+        "title": "Polling Interval (seconds)",
+        "description": "Defaults to 30 seconds with a Home Mini device ID, otherwise 300 seconds. Octopus rate-limits live telemetry, so values below 30 seconds are not allowed.",
+        "minimum": 30
+      },
+      "homeMiniDeviceId": {
+        "type": "string",
+        "title": "Home Mini Electricity Meter Device ID (optional)",
+        "description": "Optional override for the electricity meter EUI64 device ID, for example 12-34-5A-FF-FF-6B-C7-89. Normally discovered from the account number."
+      },
+      "import": {
+        "type": "object",
+        "title": "Import Meter",
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Accessory Name",
+            "default": "Octopus Import"
+          },
+          "mpan": {
+            "type": "string",
+            "title": "MPAN"
+          },
+          "meterSerial": {
+            "type": "string",
+            "title": "Meter Serial"
+          }
+        },
+        "required": ["mpan", "meterSerial"],
+        "additionalProperties": false
+      },
+      "export": {
+        "type": "object",
+        "title": "Export Meter (optional)",
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Accessory Name",
+            "default": "Octopus Export"
+          },
+          "mpan": {
+            "type": "string",
+            "title": "MPAN"
+          },
+          "meterSerial": {
+            "type": "string",
+            "title": "Meter Serial"
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "required": ["apiKey", "import"],
+    "additionalProperties": false
+  }
+}

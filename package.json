@@ -1,0 +1,81 @@
+{
+  "name": "homebridge-octopus-energy-live",
+  "displayName": "Octopus Energy Live",
+  "version": "0.1.0",
+  "description": "Display live Octopus Energy smart meter power and energy in Apple Home through Homebridge Matter",
+  "author": {
+    "name": "lxmitch",
+    "url": "https://github.com/Ai-Lampy"
+  },
+  "contributors": [
+    {
+      "name": "IcebondX",
+      "url": "https://github.com/icebondx"
+    }
+  ],
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Ai-Lampy/homebridge-octopus-energy-live.git"
+  },
+  "homepage": "https://github.com/Ai-Lampy/homebridge-octopus-energy-live#readme",
+  "bugs": {
+    "url": "https://github.com/Ai-Lampy/homebridge-octopus-energy-live/issues"
+  },
+  "main": "dist/index.js",
+  "files": [
+    "dist",
+    "config.schema.json"
+  ],
+  "keywords": [
+    "homebridge-plugin",
+    "supports-hap",
+    "supports-matter",
+    "octopus",
+    "energy",
+    "electricity",
+    "homekit",
+    "octopus-energy",
+    "live-energy",
+    "smart-meter",
+    "eve",
+    "power-monitoring"
+  ],
+  "engines": {
+    "node": "^22.10.0 || ^24.0.0",
+    "homebridge": "^1.8.0 || ^2.2.1"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "test": "npm run build && node --test test/*.test.js",
+    "watch": "tsc -w -p tsconfig.json",
+    "lint": "eslint src --ext .ts",
+    "clean": "rimraf dist",
+    "prepare": "npm run build",
+    "prepublishOnly": "npm run lint && npm test"
+  },
+  "homebridge": {
+    "platforms": [
+      {
+        "platform": "OctopusEnergyLive",
+        "name": "Octopus Energy Live"
+      }
+    ]
+  },
+  "dependencies": {
+    "node-fetch": "^2.6.11"
+  },
+  "peerDependencies": {
+    "homebridge": "^1.8.0 || ^2.2.1"
+  },
+  "devDependencies": {
+    "homebridge": "^2.2.1",
+    "@types/node": "^20.14.2",
+    "@types/node-fetch": "^2.6.11",
+    "@typescript-eslint/eslint-plugin": "^7.8.0",
+    "@typescript-eslint/parser": "^7.8.0",
+    "eslint": "^8.57.0",
+    "rimraf": "^5.0.5",
+    "typescript": "^5.4.5"
+  }
+}

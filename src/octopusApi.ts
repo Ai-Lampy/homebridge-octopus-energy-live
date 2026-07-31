@@ -1,6 +1,12 @@
 import fetch from 'node-fetch';
 import { Logger } from 'homebridge';
-import { buildLatestConsumptionUrl, buildTodayConsumptionUrl } from './octopusUrls';
+import {
+  buildLatestConsumptionUrl,
+  buildLatestGasConsumptionUrl,
+  buildTodayConsumptionUrl,
+  buildTodayGasConsumptionUrl,
+} from './octopusUrls';
+import { GasConsumptionUnit, normaliseGasConsumptionUnit } from './gas';
 
 const GRAPHQL_URL = 'https://api.octopus.energy/v1/graphql/';
 
@@ -50,6 +56,20 @@ interface AccountMetersResponse {
   };
 }
 
+interface AccountGasMetersResponse {
+  account?: {
+    gasAgreements?: Array<{
+      meterPoint?: {
+        mprn?: string;
+        meters?: Array<{
+          serialNumber?: string;
+          consumptionUnits?: string;
+        }>;
+      };
+    }>;
+  };
+}
+
 export interface LiveTelemetry {
   readAt?: string;
   demandWatts: number;
@@ -64,12 +84,20 @@ export interface IntervalReading {
   periodEnd: Date;
 }
 
+export interface GasIntervalReading {
+  intervalConsumption: number;
+  totalConsumption: number;
+  periodStart: Date;
+  periodEnd: Date;
+}
+
 export class OctopusApiClient {
   private token?: string;
   private tokenExpiresAt = 0;
   private telemetryPromise?: Promise<LiveTelemetry>;
   private telemetryFetchedAt = 0;
   private readonly intervalCache = new Map<string, { fetchedAt: number; promise: Promise<IntervalReading> }>();
+  private readonly gasIntervalCache = new Map<string, { fetchedAt: number; promise: Promise<GasIntervalReading> }>();
 
   constructor(
     private readonly apiKey: string,
@@ -117,6 +145,48 @@ export class OctopusApiClient {
     throw new Error('No smart electricity device ID matched the configured MPAN and meter serial');
   }
 
+  public async discoverGasConsumptionUnit(
+    accountNumber: string,
+    mprn: string,
+    meterSerial: string,
+  ): Promise<GasConsumptionUnit> {
+    const query = `
+      query AccountGasMeters($accountNumber: String!) {
+        account(accountNumber: $accountNumber) {
+          gasAgreements(active: true) {
+            meterPoint {
+              mprn
+              meters(includeInactive: false) {
+                serialNumber
+                consumptionUnits
+              }
+            }
+          }
+        }
+      }
+    `;
+    const payload = await this.fetchGraphQL<AccountGasMetersResponse>(query, { accountNumber: accountNumber.trim() });
+    if (payload.errors?.length) {
+      throw new Error(payload.errors.map((error) => error.message ?? 'GraphQL error').join('; '));
+    }
+
+    const wantedMprn = mprn.replace(/\s/g, '');
+    const wantedSerial = meterSerial.replace(/\s/g, '').toUpperCase();
+    for (const agreement of payload.data?.account?.gasAgreements ?? []) {
+      const meterPoint = agreement.meterPoint;
+      if (meterPoint?.mprn?.replace(/\s/g, '') !== wantedMprn) {
+        continue;
+      }
+      for (const meter of meterPoint.meters ?? []) {
+        if (meter.serialNumber?.replace(/\s/g, '').toUpperCase() !== wantedSerial) {
+          continue;
+        }
+        return normaliseGasConsumptionUnit(meter.consumptionUnits);
+      }
+    }
+    throw new Error('No active gas meter matched the configured MPRN and meter serial');
+  }
+
   public async fetchLiveTelemetry(deviceId: string): Promise<LiveTelemetry> {
     // Import and export accessories poll together. Coalesce their requests so a
     // Home Mini only consumes one Octopus API call per polling interval.
@@ -155,6 +225,23 @@ export class OctopusApiClient {
     return promise;
   }
 
+  public async fetchGasIntervalReading(mprn: string, meterSerial: string): Promise<GasIntervalReading> {
+    const cacheKey = `${mprn.trim()}-${meterSerial.trim()}`;
+    const cached = this.gasIntervalCache.get(cacheKey);
+    if (cached && Date.now() - cached.fetchedAt < 25 * 60_000) {
+      return cached.promise;
+    }
+
+    const promise = this.fetchGasIntervalReadingUncached(mprn, meterSerial);
+    this.gasIntervalCache.set(cacheKey, { fetchedAt: Date.now(), promise });
+    void promise.catch(() => {
+      if (this.gasIntervalCache.get(cacheKey)?.promise === promise) {
+        this.gasIntervalCache.delete(cacheKey);
+      }
+    });
+    return promise;
+  }
+
   private async fetchIntervalReadingUncached(mpan: string, meterSerial: string): Promise<IntervalReading> {
     const now = new Date();
     const totalStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), 0, 0, 0));
@@ -181,6 +268,32 @@ export class OctopusApiClient {
     return {
       watts: Math.round(watts * 100) / 100,
       totalKWh: Math.max(0, Math.round(totalKWh * 1000) / 1000),
+      periodStart: totalStart,
+      periodEnd,
+    };
+  }
+
+  private async fetchGasIntervalReadingUncached(mprn: string, meterSerial: string): Promise<GasIntervalReading> {
+    const now = new Date();
+    const totalStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), 0, 0, 0));
+    const [latestResponse, todayResponse] = await Promise.all([
+      this.fetchRest(buildLatestGasConsumptionUrl(mprn, meterSerial)),
+      this.fetchRest(buildTodayGasConsumptionUrl(mprn, meterSerial, { now })),
+    ]);
+
+    const latest = latestResponse.results?.[0];
+    if (!latest || typeof latest.consumption !== 'number') {
+      throw new Error('No gas consumption records returned');
+    }
+
+    const periodEnd = new Date(latest.interval_end ?? latest.period_end ?? Date.now());
+    const totalConsumption = (todayResponse.results ?? []).reduce((total, record) => (
+      total + (typeof record.consumption === 'number' ? record.consumption : 0)
+    ), 0);
+
+    return {
+      intervalConsumption: Math.max(0, Math.round(latest.consumption * 1000) / 1000),
+      totalConsumption: Math.max(0, Math.round(totalConsumption * 1000) / 1000),
       periodStart: totalStart,
       periodEnd,
     };

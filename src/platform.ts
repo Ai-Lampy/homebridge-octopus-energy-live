@@ -14,11 +14,25 @@ import { PLATFORM_NAME, PLUGIN_NAME } from './settings';
 import { EveCharacteristics, getEveCharacteristics } from './eve';
 import { OctopusApiClient } from './octopusApi';
 import { kWhToMatterMilliwattHours, wattsToMatterMilliwatts } from './energy';
+import { GasMeterConfig, OctopusGasMeterAccessory } from './gasAccessory';
+import { GasConsumptionUnit } from './gas';
 
 interface MeterEntry {
   name?: string;
   mpan: string;
   meterSerial: string;
+}
+
+interface GasMeterEntry {
+  name?: string;
+  mprn: string;
+  meterSerial: string;
+  unit?: 'auto' | 'kWh' | 'm3';
+}
+
+interface PollingAccessory {
+  startPolling(): void;
+  stopPolling(): void;
 }
 
 interface OctopusPlatformConfig extends PlatformConfig {
@@ -27,6 +41,7 @@ interface OctopusPlatformConfig extends PlatformConfig {
   pollSeconds?: number;
   homeMiniDeviceId?: string;
   import: MeterEntry;
+  gas?: GasMeterEntry;
   export?: MeterEntry;
 }
 
@@ -37,7 +52,7 @@ export class OctopusEnergyLivePlatform implements DynamicPlatformPlugin {
 
   private readonly accessories: PlatformAccessory[] = [];
   private readonly matterAccessories: MatterAccessory[] = [];
-  private readonly managed: OctopusMeterAccessory[] = [];
+  private readonly managed: PollingAccessory[] = [];
   private pollSeconds: number;
   private readonly client: OctopusApiClient;
   private homeMiniDeviceId?: string;
@@ -63,7 +78,7 @@ export class OctopusEnergyLivePlatform implements DynamicPlatformPlugin {
       || !config.import?.mpan?.trim()
       || !config.import.meterSerial?.trim()
     ) {
-      this.log.error('Configuration requires an API key, import MPAN, and import meter serial; plugin will not start.');
+      this.log.error('Configuration requires an API key, electricity MPAN, and electricity meter serial; plugin will not start.');
       return;
     }
 
@@ -100,7 +115,7 @@ export class OctopusEnergyLivePlatform implements DynamicPlatformPlugin {
     }
 
     if (!this.config.import) {
-      this.log.error('Import meter configuration missing.');
+      this.log.error('Electricity meter configuration missing.');
       return;
     }
 
@@ -126,6 +141,17 @@ export class OctopusEnergyLivePlatform implements DynamicPlatformPlugin {
 
     await this.registerMeter('import', this.config.import);
 
+    let gasUuid: string | undefined;
+    if (this.config.gas?.mprn?.trim() || this.config.gas?.meterSerial?.trim()) {
+      if (this.config.gas.mprn?.trim() && this.config.gas.meterSerial?.trim()) {
+        gasUuid = this.api.hap.uuid.generate(`gas-${this.config.gas.mprn}-${this.config.gas.meterSerial}`);
+        await this.registerGasMeter(this.config.gas, gasUuid);
+      } else {
+        this.log.warn('Gas configuration incomplete; skipping gas accessory. Both MPRN and meter serial are required.');
+      }
+    }
+    this.removeStaleGasAccessories(gasUuid);
+
     if (this.config.export) {
       if (this.config.export.mpan && this.config.export.meterSerial) {
         await this.registerMeter('export', this.config.export);
@@ -135,8 +161,82 @@ export class OctopusEnergyLivePlatform implements DynamicPlatformPlugin {
     }
   }
 
+  private async registerGasMeter(meter: GasMeterEntry, uuid: string): Promise<void> {
+    let unit: GasConsumptionUnit;
+    if (meter.unit === 'kWh') {
+      unit = 'kWh';
+    } else if (meter.unit === 'm3') {
+      unit = 'm³';
+    } else {
+      if (!this.config.accountNumber?.trim()) {
+        this.log.error(
+          'Gas unit auto-detection requires the Octopus account number. Add it or choose the gas consumption unit manually.',
+        );
+        return;
+      }
+      try {
+        unit = await this.client.discoverGasConsumptionUnit(
+          this.config.accountNumber,
+          meter.mprn,
+          meter.meterSerial,
+        );
+        this.log.info(`Detected gas consumption unit: ${unit}.`);
+      } catch (error) {
+        this.log.error(
+          `Could not determine the gas consumption unit; choose it manually in plugin settings: ${
+            error instanceof Error ? error.message : String(error)
+          }`,
+        );
+        return;
+      }
+    }
+
+    const name = meter.name || 'Gas Meter';
+    const existing = this.accessories.find((accessory) => accessory.UUID === uuid);
+    const accessory = existing ?? new this.api.platformAccessory(name, uuid);
+
+    accessory.displayName = name;
+    if (existing) {
+      this.log.info('Updating cached gas accessory', name);
+    } else {
+      this.log.info('Registering new gas accessory', name);
+      this.api.registerPlatformAccessories(PLUGIN_NAME, PLATFORM_NAME, [accessory]);
+      this.accessories.push(accessory);
+    }
+
+    accessory.context.gas = {
+      name,
+      mprn: meter.mprn,
+      meterSerial: meter.meterSerial,
+      unit,
+    } as GasMeterConfig;
+    this.managed.push(new OctopusGasMeterAccessory(this, accessory, accessory.context.gas, this.client));
+    this.api.updatePlatformAccessories([accessory]);
+
+    if (typeof this.api.isMatterEnabled === 'function' && this.api.isMatterEnabled()) {
+      this.log.info(
+        'Gas data is available through classic HomeKit custom characteristics; Matter and Apple Home do not currently define a gas-consumption cluster.',
+      );
+    }
+  }
+
+  private removeStaleGasAccessories(activeUuid?: string): void {
+    const stale = this.accessories.filter((accessory) => accessory.context.gas && accessory.UUID !== activeUuid);
+    if (!stale.length) {
+      return;
+    }
+    this.api.unregisterPlatformAccessories(PLUGIN_NAME, PLATFORM_NAME, stale);
+    for (const accessory of stale) {
+      const index = this.accessories.indexOf(accessory);
+      if (index >= 0) {
+        this.accessories.splice(index, 1);
+      }
+      this.log.info('Removed stale gas accessory', accessory.displayName);
+    }
+  }
+
   private async registerMeter(side: MeterSide, meter: MeterEntry): Promise<void> {
-    const name = meter.name || (side === 'import' ? 'Octopus Import' : 'Octopus Export');
+    const name = meter.name || (side === 'import' ? 'Electricity Meter' : 'Octopus Export');
     const uuid = this.api.hap.uuid.generate(`${side}-${meter.mpan}-${meter.meterSerial}`);
 
     const existing = this.accessories.find((accessory) => accessory.UUID === uuid);

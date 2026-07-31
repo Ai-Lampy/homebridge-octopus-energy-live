@@ -3,6 +3,8 @@ import { API, Characteristic, WithUUID } from 'homebridge';
 export interface EveCharacteristics {
   Power: WithUUID<new () => Characteristic>;
   TotalConsumption: WithUUID<new () => Characteristic>;
+  GasConsumption: WithUUID<new () => Characteristic>;
+  TotalGasConsumption: WithUUID<new () => Characteristic>;
 }
 
 const UUID_POWER = 'E863F10A-079E-48FF-8F27-9C2605A29F52';
@@ -43,9 +45,37 @@ export function getEveCharacteristics(api: API): EveCharacteristics {
     }
   }
 
+  class GasConsumption extends Characteristic {
+    public static readonly UUID = api.hap.uuid.generate('homebridge-octopus-energy-live:gas-consumption');
+
+    constructor() {
+      super('Gas Consumption (latest interval)', GasConsumption.UUID, {
+        format: Formats.FLOAT,
+        unit: 'm³',
+        perms: [Perms.PAIRED_READ, Perms.NOTIFY],
+        minValue: 0,
+      });
+    }
+  }
+
+  class TotalGasConsumption extends Characteristic {
+    public static readonly UUID = api.hap.uuid.generate('homebridge-octopus-energy-live:total-gas-consumption');
+
+    constructor() {
+      super('Gas Consumption Today', TotalGasConsumption.UUID, {
+        format: Formats.FLOAT,
+        unit: 'm³',
+        perms: [Perms.PAIRED_READ, Perms.NOTIFY],
+        minValue: 0,
+      });
+    }
+  }
+
   cached = {
     Power: EvePower,
     TotalConsumption: EveTotalConsumption,
+    GasConsumption,
+    TotalGasConsumption,
   };
 
   return cached;

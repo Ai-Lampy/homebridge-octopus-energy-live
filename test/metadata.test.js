@@ -23,3 +23,11 @@ test('declares the transports and supported Node.js versions', () => {
   assert(packageJson.keywords.includes('supports-matter'));
   assert.equal(packageJson.engines.node, '^22.10.0 || ^24.0.0');
 });
+
+test('labels electricity accurately and provides optional gas settings', () => {
+  assert.equal(schema.schema.properties.import.title, 'Electricity Meter');
+  assert.equal(schema.schema.properties.gas.title, 'Gas Meter (Optional)');
+  assert(schema.schema.properties.gas.properties.mprn);
+  assert(schema.schema.properties.gas.properties.meterSerial);
+  assert(!schema.schema.required.includes('gas'));
+});

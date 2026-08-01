@@ -1,7 +1,7 @@
 {
   "name": "homebridge-octopus-energy-live",
   "displayName": "Octopus Energy Live",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Display Octopus Energy electricity and gas smart meter data through Homebridge",
   "author": {
     "name": "lxmitch",
@@ -25,7 +25,8 @@
   "main": "dist/index.js",
   "files": [
     "dist",
-    "config.schema.json"
+    "config.schema.json",
+    "CHANGELOG.md"
   ],
   "keywords": [
     "homebridge-plugin",

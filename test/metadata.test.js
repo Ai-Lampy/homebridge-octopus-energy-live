@@ -43,4 +43,7 @@ test('registers all Matter energy meters as outlets', () => {
   assert(!platformSource.includes('matter.deviceTypes.ElectricalSensor'));
   assert(platformSource.includes('matter-outlet-gas-'));
   assert(platformSource.includes('matter-outlet-${side}-'));
+  assert(platformSource.includes('this.pendingMatterRegistrations'));
+  assert(platformSource.includes('const accessories = [...this.pendingMatterRegistrations]'));
+  assert(!platformSource.includes('matter.updatePlatformAccessories'));
 });

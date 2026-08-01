@@ -169,25 +169,29 @@ export class OctopusEnergyLivePlatform implements DynamicPlatformPlugin {
       unit = 'm³';
     } else {
       if (!this.config.accountNumber?.trim()) {
-        this.log.error(
-          'Gas unit auto-detection requires the Octopus account number. Add it or choose the gas consumption unit manually.',
+        unit = 'm³';
+        this.log.warn(
+          'Gas unit auto-detection requires an account number; assuming m³ for a SMETS2 meter. '
+          + 'Choose kWh manually in plugin settings for a SMETS1 meter.',
         );
-        return;
-      }
-      try {
-        unit = await this.client.discoverGasConsumptionUnit(
-          this.config.accountNumber,
-          meter.mprn,
-          meter.meterSerial,
-        );
-        this.log.info(`Detected gas consumption unit: ${unit}.`);
-      } catch (error) {
-        this.log.error(
-          `Could not determine the gas consumption unit; choose it manually in plugin settings: ${
-            error instanceof Error ? error.message : String(error)
-          }`,
-        );
-        return;
+      } else {
+        try {
+          unit = await this.client.discoverGasConsumptionUnit(
+            this.config.accountNumber,
+            meter.mprn,
+            meter.meterSerial,
+          );
+          this.log.info(`Detected gas consumption unit: ${unit}.`);
+        } catch (error) {
+          unit = 'm³';
+          this.log.warn(
+            `Could not determine the gas consumption unit; assuming m³ for a SMETS2 meter. ${
+              'Choose kWh manually in plugin settings for a SMETS1 meter: '
+            }${
+              error instanceof Error ? error.message : String(error)
+            }`,
+          );
+        }
       }
     }
 
@@ -234,7 +238,9 @@ export class OctopusEnergyLivePlatform implements DynamicPlatformPlugin {
       }
     }
 
-    const activeMatterUuid = activeUuid ? this.api.hap.uuid.generate(`matter-${activeUuid}`) : undefined;
+    const activeMatterUuid = this.config.gas?.mprn?.trim() && this.config.gas?.meterSerial?.trim()
+      ? this.gasMatterUuid(this.config.gas.mprn, this.config.gas.meterSerial)
+      : undefined;
     const staleMatter = this.matterAccessories.filter(
       (accessory) => accessory.context.fuel === 'gas'
         && accessory.UUID !== activeMatterUuid,
@@ -260,9 +266,7 @@ export class OctopusEnergyLivePlatform implements DynamicPlatformPlugin {
       return undefined;
     }
 
-    const uuid = this.api.hap.uuid.generate(
-      `matter-${this.api.hap.uuid.generate(`gas-${meter.mprn}-${meter.meterSerial}`)}`,
-    );
+    const uuid = this.gasMatterUuid(meter.mprn, meter.meterSerial);
     const existing = this.matterAccessories.find((accessory) => accessory.UUID === uuid);
     const rawTotal = typeof hapAccessory.context.lastGasTotalConsumption === 'number'
       ? hapAccessory.context.lastGasTotalConsumption
@@ -310,6 +314,10 @@ export class OctopusEnergyLivePlatform implements DynamicPlatformPlugin {
       this.log.info('Registered Matter gas outlet', meter.name);
     }
     return uuid;
+  }
+
+  private gasMatterUuid(mprn: string, meterSerial: string): string {
+    return this.api.hap.uuid.generate(`matter-outlet-gas-${mprn}-${meterSerial}`);
   }
 
   private async registerMeter(side: MeterSide, meter: MeterEntry): Promise<void> {
@@ -361,7 +369,7 @@ export class OctopusEnergyLivePlatform implements DynamicPlatformPlugin {
       return undefined;
     }
 
-    const uuid = this.api.hap.uuid.generate(`matter-${side}-${meter.mpan}-${meter.meterSerial}`);
+    const uuid = this.api.hap.uuid.generate(`matter-outlet-${side}-${meter.mpan}-${meter.meterSerial}`);
     const existing = this.matterAccessories.find((accessory) => accessory.UUID === uuid);
     const lastWatts = typeof hapAccessory.context.lastWatts === 'number' ? hapAccessory.context.lastWatts : 0;
     const totalKWh = typeof hapAccessory.context.totalKWh === 'number' ? hapAccessory.context.totalKWh : 0;
@@ -369,7 +377,7 @@ export class OctopusEnergyLivePlatform implements DynamicPlatformPlugin {
     const matterAccessory: MatterAccessory = existing ?? {
       UUID: uuid,
       displayName: meter.name,
-      deviceType: matter.deviceTypes.ElectricalSensor,
+      deviceType: matter.deviceTypes.OnOffOutlet,
       manufacturer: 'Octopus Energy',
       model: `${side.toUpperCase()} smart meter`,
       serialNumber: meter.meterSerial,
@@ -377,25 +385,49 @@ export class OctopusEnergyLivePlatform implements DynamicPlatformPlugin {
     };
 
     matterAccessory.displayName = meter.name;
-    matterAccessory.deviceType = matter.deviceTypes.ElectricalSensor;
+    matterAccessory.deviceType = matter.deviceTypes.OnOffOutlet;
     matterAccessory.manufacturer = 'Octopus Energy';
     matterAccessory.model = `${side.toUpperCase()} smart meter`;
     matterAccessory.serialNumber = meter.meterSerial;
     matterAccessory.context = { side, mpan: meter.mpan, meterSerial: meter.meterSerial };
     matterAccessory.clusters = {
+      onOff: { onOff: true },
       electricalPowerMeasurement: { activePower: wattsToMatterMilliwatts(lastWatts) },
       electricalEnergyMeasurement: {
         [energyAttribute]: { energy: kWhToMatterMilliwattHours(totalKWh) },
       },
     };
+    matterAccessory.handlers = {
+      onOff: {
+        on: async () => {
+          await matter.updateAccessoryState(uuid, matter.clusterNames.OnOff, { onOff: true });
+        },
+        off: async () => {
+          await matter.updateAccessoryState(uuid, matter.clusterNames.OnOff, { onOff: true });
+        },
+      },
+    };
 
     if (existing) {
       await matter.updatePlatformAccessories([matterAccessory]);
-      this.log.info('Updating cached Matter energy sensor', meter.name);
+      this.log.info('Updating cached Matter energy outlet', meter.name);
     } else {
       await matter.registerPlatformAccessories(PLUGIN_NAME, PLATFORM_NAME, [matterAccessory]);
       this.matterAccessories.push(matterAccessory);
-      this.log.info('Registered Matter energy sensor', meter.name);
+      this.log.info('Registered Matter energy outlet', meter.name);
+    }
+
+    const legacyUuid = this.api.hap.uuid.generate(`matter-${side}-${meter.mpan}-${meter.meterSerial}`);
+    const legacy = this.matterAccessories.filter((accessory) => accessory.UUID === legacyUuid);
+    if (legacy.length) {
+      await matter.unregisterPlatformAccessories(PLUGIN_NAME, PLATFORM_NAME, legacy);
+      for (const accessory of legacy) {
+        const index = this.matterAccessories.indexOf(accessory);
+        if (index >= 0) {
+          this.matterAccessories.splice(index, 1);
+        }
+      }
+      this.log.info('Removed legacy Matter energy sensor', meter.name);
     }
     return uuid;
   }

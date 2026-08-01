@@ -92,6 +92,8 @@ npm pack --dry-run
 
 `npm test` compiles TypeScript into `dist/` before running the unit tests. The GitHub Actions workflow runs this sequence on Node.js 22 and 24 for every pull request and every push to `main`. Publishing to npm is intentionally not automated; a repository maintainer should review and publish a release explicitly.
 
+Running the manual **Publish to npm** workflow publishes the package version and then creates a matching `vX.Y.Z` GitHub Release. GitHub generates the release notes from changes since the previous release, and the notes include a direct link to that version on npm. Re-running the workflow is safe when npm publication succeeded but GitHub Release creation did not: existing npm versions and GitHub Releases are detected and skipped.
+
 ## Links
 
 - [Octopus Energy API documentation](https://developer.octopus.energy/)

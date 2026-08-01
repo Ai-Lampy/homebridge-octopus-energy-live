@@ -4,6 +4,13 @@ All notable changes to Octopus Energy Live are documented here.
 
 The project follows [Semantic Versioning](https://semver.org/).
 
+## [0.3.2] - 2026-08-01
+
+### Fixed
+
+- Re-registered cached Matter outlets on every Homebridge startup instead of attempting to update endpoints that were not registered in the current session.
+- Submitted all meter outlets in one Matter registration batch, preventing concurrent parts-list notifications from competing for the same Matter state lock.
+
 ## [0.3.1] - 2026-08-01
 
 ### Fixed
@@ -60,3 +67,4 @@ The project follows [Semantic Versioning](https://semver.org/).
 [0.2.0]: https://github.com/Ai-Lampy/homebridge-octopus-energy-live/compare/v0.1.0...v0.2.0
 [0.3.0]: https://github.com/Ai-Lampy/homebridge-octopus-energy-live/compare/v0.2.0...v0.3.0
 [0.3.1]: https://github.com/Ai-Lampy/homebridge-octopus-energy-live/compare/v0.3.0...v0.3.1
+[0.3.2]: https://github.com/Ai-Lampy/homebridge-octopus-energy-live/compare/v0.3.1...v0.3.2

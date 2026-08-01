@@ -24,6 +24,11 @@ test('declares the transports and supported Node.js versions', () => {
   assert.equal(packageJson.engines.node, '^22.10.0 || ^24.0.0');
 });
 
+test('includes release notes in the published package', () => {
+  assert(packageJson.files.includes('CHANGELOG.md'));
+  assert(fs.existsSync(path.join(root, 'CHANGELOG.md')));
+});
+
 test('labels electricity accurately and provides optional gas settings', () => {
   assert.equal(schema.schema.properties.import.title, 'Electricity Meter');
   assert.equal(schema.schema.properties.gas.title, 'Gas Meter (Optional)');

@@ -4,6 +4,14 @@ All notable changes to Octopus Energy Live are documented here.
 
 The project follows [Semantic Versioning](https://semver.org/).
 
+## [0.3.1] - 2026-08-01
+
+### Fixed
+
+- Registered electricity import, electricity export, and gas as Matter outlets so Apple Home presents them consistently.
+- Migrated electricity meters to new Matter outlet identities instead of retaining the cached electrical-sensor device type.
+- Allowed the gas outlet to register when Octopus unit auto-detection fails, using SMETS2 cubic metres as a documented fallback.
+
 ## [0.3.0] - 2026-08-01
 
 ### Added
@@ -51,3 +59,4 @@ The project follows [Semantic Versioning](https://semver.org/).
 [0.1.0]: https://github.com/Ai-Lampy/homebridge-octopus-energy-live/releases/tag/v0.1.0
 [0.2.0]: https://github.com/Ai-Lampy/homebridge-octopus-energy-live/compare/v0.1.0...v0.2.0
 [0.3.0]: https://github.com/Ai-Lampy/homebridge-octopus-energy-live/compare/v0.2.0...v0.3.0
+[0.3.1]: https://github.com/Ai-Lampy/homebridge-octopus-energy-live/compare/v0.3.0...v0.3.1

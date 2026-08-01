@@ -1,6 +1,6 @@
 # Octopus Energy Live for Homebridge
 
-Homebridge platform plugin that publishes Octopus Energy electricity and gas usage through Matter. On iOS 27, Apple Home can display electricity power and energy, while the optional gas meter appears as an outlet with cumulative gas energy in kWh.
+Homebridge platform plugin that publishes Octopus Energy electricity and gas usage as Matter outlets. On iOS 27, Apple Home can display electricity power and energy, while the optional gas outlet reports cumulative gas energy in kWh.
 
 ## Data sources
 
@@ -62,13 +62,13 @@ Treat the API key as a password. The plugin exchanges it for a short-lived Krake
 
 ## Apple Home and Matter
 
-When Matter is enabled, each configured electricity meter is registered as a Matter `ElectricalSensor` with:
+When Matter is enabled, each configured electricity meter is registered as a Matter `OnOffOutlet` with:
 
 - `ElectricalPowerMeasurement.activePower` in milliwatts
 - `ElectricalEnergyMeasurement.cumulativeEnergyImported` for import
 - `ElectricalEnergyMeasurement.cumulativeEnergyExported` for export
 
-The optional gas meter is registered as a Matter `OnOffOutlet` with `ElectricalEnergyMeasurement.cumulativeEnergyImported`. The outlet remains on because it represents a read-only meter, not a controllable gas appliance. Apple Home receives the gas total as kWh.
+The optional gas meter is also registered as a Matter `OnOffOutlet`, with `ElectricalEnergyMeasurement.cumulativeEnergyImported`. Every meter outlet remains on because it represents a read-only meter rather than a controllable appliance. Apple Home receives the gas total as kWh.
 
 The plugin also keeps read-only HomeKit Outlet services with Eve characteristics. Third-party HomeKit apps can use these values even when Matter is disabled.
 

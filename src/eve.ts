@@ -51,7 +51,7 @@ export function getEveCharacteristics(api: API): EveCharacteristics {
     constructor() {
       super('Gas Consumption (latest interval)', GasConsumption.UUID, {
         format: Formats.FLOAT,
-        unit: 'm³',
+        unit: 'kWh',
         perms: [Perms.PAIRED_READ, Perms.NOTIFY],
         minValue: 0,
       });
@@ -64,7 +64,7 @@ export function getEveCharacteristics(api: API): EveCharacteristics {
     constructor() {
       super('Gas Consumption Today', TotalGasConsumption.UUID, {
         format: Formats.FLOAT,
-        unit: 'm³',
+        unit: 'kWh',
         perms: [Perms.PAIRED_READ, Perms.NOTIFY],
         minValue: 0,
       });

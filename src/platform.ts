@@ -15,7 +15,7 @@ import { EveCharacteristics, getEveCharacteristics } from './eve';
 import { OctopusApiClient } from './octopusApi';
 import { kWhToMatterMilliwattHours, wattsToMatterMilliwatts } from './energy';
 import { GasMeterConfig, OctopusGasMeterAccessory } from './gasAccessory';
-import { GasConsumptionUnit } from './gas';
+import { GasConsumptionUnit, gasConsumptionToKWh } from './gas';
 
 interface MeterEntry {
   name?: string;
@@ -150,7 +150,7 @@ export class OctopusEnergyLivePlatform implements DynamicPlatformPlugin {
         this.log.warn('Gas configuration incomplete; skipping gas accessory. Both MPRN and meter serial are required.');
       }
     }
-    this.removeStaleGasAccessories(gasUuid);
+    await this.removeStaleGasAccessories(gasUuid);
 
     if (this.config.export) {
       if (this.config.export.mpan && this.config.export.meterSerial) {
@@ -210,29 +210,106 @@ export class OctopusEnergyLivePlatform implements DynamicPlatformPlugin {
       meterSerial: meter.meterSerial,
       unit,
     } as GasMeterConfig;
-    this.managed.push(new OctopusGasMeterAccessory(this, accessory, accessory.context.gas, this.client));
+    const matterUuid = await this.registerMatterGasMeter(accessory.context.gas, accessory);
+    this.managed.push(new OctopusGasMeterAccessory(
+      this,
+      accessory,
+      accessory.context.gas,
+      this.client,
+      matterUuid,
+    ));
     this.api.updatePlatformAccessories([accessory]);
+  }
 
-    if (typeof this.api.isMatterEnabled === 'function' && this.api.isMatterEnabled()) {
-      this.log.info(
-        'Gas data is available through classic HomeKit custom characteristics; Matter and Apple Home do not currently define a gas-consumption cluster.',
-      );
+  private async removeStaleGasAccessories(activeUuid?: string): Promise<void> {
+    const stale = this.accessories.filter((accessory) => accessory.context.gas && accessory.UUID !== activeUuid);
+    if (stale.length) {
+      this.api.unregisterPlatformAccessories(PLUGIN_NAME, PLATFORM_NAME, stale);
+      for (const accessory of stale) {
+        const index = this.accessories.indexOf(accessory);
+        if (index >= 0) {
+          this.accessories.splice(index, 1);
+        }
+        this.log.info('Removed stale gas accessory', accessory.displayName);
+      }
+    }
+
+    const activeMatterUuid = activeUuid ? this.api.hap.uuid.generate(`matter-${activeUuid}`) : undefined;
+    const staleMatter = this.matterAccessories.filter(
+      (accessory) => accessory.context.fuel === 'gas'
+        && accessory.UUID !== activeMatterUuid,
+    );
+    if (staleMatter.length && this.api.matter) {
+      await this.api.matter.unregisterPlatformAccessories(PLUGIN_NAME, PLATFORM_NAME, staleMatter);
+      for (const accessory of staleMatter) {
+        const index = this.matterAccessories.indexOf(accessory);
+        if (index >= 0) {
+          this.matterAccessories.splice(index, 1);
+        }
+        this.log.info('Removed stale Matter gas outlet', accessory.displayName);
+      }
     }
   }
 
-  private removeStaleGasAccessories(activeUuid?: string): void {
-    const stale = this.accessories.filter((accessory) => accessory.context.gas && accessory.UUID !== activeUuid);
-    if (!stale.length) {
-      return;
+  private async registerMatterGasMeter(
+    meter: GasMeterConfig,
+    hapAccessory: PlatformAccessory,
+  ): Promise<string | undefined> {
+    const matter = this.api.matter;
+    if (!matter || typeof this.api.isMatterEnabled !== 'function' || !this.api.isMatterEnabled()) {
+      return undefined;
     }
-    this.api.unregisterPlatformAccessories(PLUGIN_NAME, PLATFORM_NAME, stale);
-    for (const accessory of stale) {
-      const index = this.accessories.indexOf(accessory);
-      if (index >= 0) {
-        this.accessories.splice(index, 1);
-      }
-      this.log.info('Removed stale gas accessory', accessory.displayName);
+
+    const uuid = this.api.hap.uuid.generate(
+      `matter-${this.api.hap.uuid.generate(`gas-${meter.mprn}-${meter.meterSerial}`)}`,
+    );
+    const existing = this.matterAccessories.find((accessory) => accessory.UUID === uuid);
+    const rawTotal = typeof hapAccessory.context.lastGasTotalConsumption === 'number'
+      ? hapAccessory.context.lastGasTotalConsumption
+      : 0;
+    const totalKWh = gasConsumptionToKWh(rawTotal, meter.unit);
+    const matterAccessory: MatterAccessory = existing ?? {
+      UUID: uuid,
+      displayName: meter.name,
+      deviceType: matter.deviceTypes.OnOffOutlet,
+      manufacturer: 'Octopus Energy',
+      model: 'Gas energy meter',
+      serialNumber: meter.meterSerial,
+      context: {},
+    };
+
+    matterAccessory.displayName = meter.name;
+    matterAccessory.deviceType = matter.deviceTypes.OnOffOutlet;
+    matterAccessory.manufacturer = 'Octopus Energy';
+    matterAccessory.model = 'Gas energy meter';
+    matterAccessory.serialNumber = meter.meterSerial;
+    matterAccessory.context = { fuel: 'gas', mprn: meter.mprn, meterSerial: meter.meterSerial };
+    matterAccessory.clusters = {
+      onOff: { onOff: true },
+      electricalEnergyMeasurement: {
+        cumulativeEnergyImported: { energy: kWhToMatterMilliwattHours(totalKWh) },
+      },
+    };
+    matterAccessory.handlers = {
+      onOff: {
+        on: async () => {
+          await matter.updateAccessoryState(uuid, matter.clusterNames.OnOff, { onOff: true });
+        },
+        off: async () => {
+          await matter.updateAccessoryState(uuid, matter.clusterNames.OnOff, { onOff: true });
+        },
+      },
+    };
+
+    if (existing) {
+      await matter.updatePlatformAccessories([matterAccessory]);
+      this.log.info('Updating cached Matter gas outlet', meter.name);
+    } else {
+      await matter.registerPlatformAccessories(PLUGIN_NAME, PLATFORM_NAME, [matterAccessory]);
+      this.matterAccessories.push(matterAccessory);
+      this.log.info('Registered Matter gas outlet', meter.name);
     }
+    return uuid;
   }
 
   private async registerMeter(side: MeterSide, meter: MeterEntry): Promise<void> {

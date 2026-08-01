@@ -52,6 +52,8 @@ export class OctopusEnergyLivePlatform implements DynamicPlatformPlugin {
 
   private readonly accessories: PlatformAccessory[] = [];
   private readonly matterAccessories: MatterAccessory[] = [];
+  private readonly pendingMatterRegistrations: MatterAccessory[] = [];
+  private readonly pendingMatterUnregistrations: MatterAccessory[] = [];
   private readonly managed: PollingAccessory[] = [];
   private pollSeconds: number;
   private readonly client: OctopusApiClient;
@@ -159,6 +161,8 @@ export class OctopusEnergyLivePlatform implements DynamicPlatformPlugin {
         this.log.warn('Export configuration incomplete; skipping export accessory.');
       }
     }
+
+    await this.flushMatterAccessoryChanges();
   }
 
   private async registerGasMeter(meter: GasMeterEntry, uuid: string): Promise<void> {
@@ -246,8 +250,8 @@ export class OctopusEnergyLivePlatform implements DynamicPlatformPlugin {
         && accessory.UUID !== activeMatterUuid,
     );
     if (staleMatter.length && this.api.matter) {
-      await this.api.matter.unregisterPlatformAccessories(PLUGIN_NAME, PLATFORM_NAME, staleMatter);
       for (const accessory of staleMatter) {
+        this.queueMatterUnregistration(accessory);
         const index = this.matterAccessories.indexOf(accessory);
         if (index >= 0) {
           this.matterAccessories.splice(index, 1);
@@ -305,13 +309,12 @@ export class OctopusEnergyLivePlatform implements DynamicPlatformPlugin {
       },
     };
 
+    this.queueMatterRegistration(matterAccessory);
     if (existing) {
-      await matter.updatePlatformAccessories([matterAccessory]);
-      this.log.info('Updating cached Matter gas outlet', meter.name);
+      this.log.info('Restoring cached Matter gas outlet', meter.name);
     } else {
-      await matter.registerPlatformAccessories(PLUGIN_NAME, PLATFORM_NAME, [matterAccessory]);
       this.matterAccessories.push(matterAccessory);
-      this.log.info('Registered Matter gas outlet', meter.name);
+      this.log.info('Preparing new Matter gas outlet', meter.name);
     }
     return uuid;
   }
@@ -408,20 +411,19 @@ export class OctopusEnergyLivePlatform implements DynamicPlatformPlugin {
       },
     };
 
+    this.queueMatterRegistration(matterAccessory);
     if (existing) {
-      await matter.updatePlatformAccessories([matterAccessory]);
-      this.log.info('Updating cached Matter energy outlet', meter.name);
+      this.log.info('Restoring cached Matter energy outlet', meter.name);
     } else {
-      await matter.registerPlatformAccessories(PLUGIN_NAME, PLATFORM_NAME, [matterAccessory]);
       this.matterAccessories.push(matterAccessory);
-      this.log.info('Registered Matter energy outlet', meter.name);
+      this.log.info('Preparing new Matter energy outlet', meter.name);
     }
 
     const legacyUuid = this.api.hap.uuid.generate(`matter-${side}-${meter.mpan}-${meter.meterSerial}`);
     const legacy = this.matterAccessories.filter((accessory) => accessory.UUID === legacyUuid);
     if (legacy.length) {
-      await matter.unregisterPlatformAccessories(PLUGIN_NAME, PLATFORM_NAME, legacy);
       for (const accessory of legacy) {
+        this.queueMatterUnregistration(accessory);
         const index = this.matterAccessories.indexOf(accessory);
         if (index >= 0) {
           this.matterAccessories.splice(index, 1);
@@ -430,5 +432,50 @@ export class OctopusEnergyLivePlatform implements DynamicPlatformPlugin {
       this.log.info('Removed legacy Matter energy sensor', meter.name);
     }
     return uuid;
+  }
+
+  private queueMatterRegistration(accessory: MatterAccessory): void {
+    if (!this.pendingMatterRegistrations.some((candidate) => candidate.UUID === accessory.UUID)) {
+      this.pendingMatterRegistrations.push(accessory);
+    }
+  }
+
+  private queueMatterUnregistration(accessory: MatterAccessory): void {
+    if (!this.pendingMatterUnregistrations.some((candidate) => candidate.UUID === accessory.UUID)) {
+      this.pendingMatterUnregistrations.push(accessory);
+    }
+  }
+
+  private async flushMatterAccessoryChanges(): Promise<void> {
+    const matter = this.api.matter;
+    if (!matter || typeof this.api.isMatterEnabled !== 'function' || !this.api.isMatterEnabled()) {
+      return;
+    }
+
+    if (this.pendingMatterUnregistrations.length) {
+      const accessories = [...this.pendingMatterUnregistrations];
+      await matter.unregisterPlatformAccessories(
+        PLUGIN_NAME,
+        PLATFORM_NAME,
+        accessories,
+      );
+      // Homebridge's bridged Matter API dispatches structural operations
+      // asynchronously. Give cache-only removals time to finish before the
+      // single registration batch is dispatched.
+      await new Promise((resolve) => setTimeout(resolve, 250));
+    }
+
+    if (this.pendingMatterRegistrations.length) {
+      const accessories = [...this.pendingMatterRegistrations];
+      await matter.registerPlatformAccessories(
+        PLUGIN_NAME,
+        PLATFORM_NAME,
+        accessories,
+      );
+      this.log.info(`Submitted ${accessories.length} Matter outlet(s) for registration.`);
+    }
+
+    this.pendingMatterUnregistrations.length = 0;
+    this.pendingMatterRegistrations.length = 0;
   }
 }

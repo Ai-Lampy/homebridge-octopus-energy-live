@@ -58,7 +58,7 @@
       "gas": {
         "type": "object",
         "title": "Gas Meter (Optional)",
-        "description": "Octopus gas data is published in half-hour intervals. Gas uses an MPRN, not an MPAN.",
+        "description": "Octopus gas data is published in half-hour intervals and displayed as energy in kWh. Gas uses an MPRN, not an MPAN.",
         "properties": {
           "name": {
             "type": "string",
@@ -77,7 +77,7 @@
           "unit": {
             "type": "string",
             "title": "Consumption Unit",
-            "description": "Automatic uses the Octopus account data. Select a unit manually only if automatic detection fails. SMETS1 gas is normally kWh; SMETS2 gas is normally cubic metres.",
+            "description": "This is the native API unit used for conversion. Automatic uses the Octopus account data. SMETS1 is normally kWh; SMETS2 is normally cubic metres. The displayed result is always kWh.",
             "default": "auto",
             "oneOf": [
               { "title": "Automatic (recommended)", "enum": ["auto"] },

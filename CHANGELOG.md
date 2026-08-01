@@ -4,7 +4,15 @@ All notable changes to Octopus Energy Live are documented here.
 
 The project follows [Semantic Versioning](https://semver.org/).
 
-## [0.2.1] - 2026-08-01
+## [0.3.0] - 2026-08-01
+
+### Added
+
+- Published the optional gas meter to Matter as an outlet with cumulative energy usage for Apple Home.
+
+### Changed
+
+- Gas consumption is now exposed in kWh. Native cubic-metre readings are converted using the standard UK volume correction and calorific-value formula.
 
 ### Fixed
 
@@ -42,4 +50,4 @@ The project follows [Semantic Versioning](https://semver.org/).
 
 [0.1.0]: https://github.com/Ai-Lampy/homebridge-octopus-energy-live/releases/tag/v0.1.0
 [0.2.0]: https://github.com/Ai-Lampy/homebridge-octopus-energy-live/compare/v0.1.0...v0.2.0
-[0.2.1]: https://github.com/Ai-Lampy/homebridge-octopus-energy-live/compare/v0.2.0...v0.2.1
+[0.3.0]: https://github.com/Ai-Lampy/homebridge-octopus-energy-live/compare/v0.2.0...v0.3.0

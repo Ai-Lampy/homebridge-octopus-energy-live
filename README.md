@@ -1,6 +1,6 @@
 # Octopus Energy Live for Homebridge
 
-Homebridge platform plugin that publishes Octopus Energy electricity import and optional export as native Matter electrical sensors. On iOS 27, Apple Home can display the current power and cumulative energy reported by these sensors. Optional half-hourly gas consumption is available through classic HomeKit custom characteristics for compatible controller apps.
+Homebridge platform plugin that publishes Octopus Energy electricity and gas usage through Matter. On iOS 27, Apple Home can display electricity power and energy, while the optional gas meter appears as an outlet with cumulative gas energy in kWh.
 
 ## Data sources
 
@@ -8,7 +8,7 @@ Homebridge platform plugin that publishes Octopus Energy electricity import and 
 - Without a Home Mini device ID, or whenever live telemetry is temporarily unavailable, the plugin falls back to Octopus's REST consumption endpoint. That endpoint contains half-hour intervals and is not truly live.
 - A Home Mini (or another compatible CAD connected to the meter's Home Area Network) is therefore required for true near-real-time data.
 - Gas uses Octopus's REST consumption endpoint and refreshes every 30 minutes. It is the latest available half-hour interval, not instantaneous gas flow, and Octopus may publish it after a delay.
-- Octopus returns SMETS1 gas consumption in kWh and SMETS2 gas consumption in m³. The plugin detects this from the authenticated account when possible; the setting can be overridden if detection is unavailable.
+- Octopus returns SMETS1 gas consumption in kWh and SMETS2 gas consumption in m³. The plugin detects the source unit and converts cubic metres to kWh using the UK correction-factor and calorific-value formula.
 
 ## Requirements
 
@@ -62,15 +62,15 @@ Treat the API key as a password. The plugin exchanges it for a short-lived Krake
 
 ## Apple Home and Matter
 
-When Matter is enabled, each configured meter is registered as a Matter `ElectricalSensor` with:
+When Matter is enabled, each configured electricity meter is registered as a Matter `ElectricalSensor` with:
 
 - `ElectricalPowerMeasurement.activePower` in milliwatts
 - `ElectricalEnergyMeasurement.cumulativeEnergyImported` for import
 - `ElectricalEnergyMeasurement.cumulativeEnergyExported` for export
 
-The plugin also keeps the existing read-only HomeKit Outlet with Eve instantaneous-power and total-consumption characteristics. Apple Home uses the Matter sensor; third-party HomeKit apps can continue using the Eve values.
+The optional gas meter is registered as a Matter `OnOffOutlet` with `ElectricalEnergyMeasurement.cumulativeEnergyImported`. The outlet remains on because it represents a read-only meter, not a controllable gas appliance. Apple Home receives the gas total as kWh.
 
-Matter currently defines electrical power and energy measurement clusters but no gas-consumption cluster. The plugin therefore does not misreport gas as electricity. To publish gas, enable HAP as well as Matter for this plugin's child bridge and pair that HomeKit bridge. Apple Home can show the accessory tile but does not render its custom gas values; use Home+ or another HomeKit app that displays custom characteristics to see the latest interval and today's total.
+The plugin also keeps read-only HomeKit Outlet services with Eve characteristics. Third-party HomeKit apps can use these values even when Matter is disabled.
 
 ## Limitations
 
@@ -78,7 +78,8 @@ Matter currently defines electrical power and energy measurement clusters but no
 - Octopus live telemetry can be unavailable or rate-limited. The last value remains visible while the plugin retries and uses interval data where possible.
 - Some smart meter models do not provide live export. In that case export power can remain at zero even though delayed export energy is available.
 - Gas readings are half-hourly and can arrive late; they are not Home Mini live telemetry.
-- Apple Home and Matter do not currently provide a native gas-consumption presentation.
+- Matter has no native gas meter type, so Apple Home presents gas as an energy-monitoring outlet.
+- SMETS2 gas is converted from m³ using a representative calorific value of 39.2 MJ/m³. The official app or bill can differ slightly because the billing calorific value varies by region and day.
 - Homebridge's Matter bridge is community software and is not a certified Matter product, so Apple Home may show an uncertified-accessory warning.
 
 ## Development and GitHub builds

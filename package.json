@@ -65,7 +65,7 @@
     ]
   },
   "dependencies": {
-    "node-fetch": "^2.6.11"
+    "node-fetch": "^3.3.2"
   },
   "peerDependencies": {
     "homebridge": "^1.8.0 || ^2.2.1"

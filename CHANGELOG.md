@@ -4,6 +4,12 @@ All notable changes to Octopus Energy Live are documented here.
 
 The project follows [Semantic Versioning](https://semver.org/).
 
+## [0.4.1] - 2026-08-03
+
+### Fixed
+
+- Restored cached custom electricity and gas meter services by UUID instead of treating their UUID as a display name, preventing duplicate-service failures after the first v0.4.0 restart.
+
 ## [0.4.0] - 2026-08-03
 
 ### Added
@@ -88,3 +94,4 @@ The project follows [Semantic Versioning](https://semver.org/).
 [0.3.1]: https://github.com/Ai-Lampy/homebridge-octopus-energy-live/compare/v0.3.0...v0.3.1
 [0.3.2]: https://github.com/Ai-Lampy/homebridge-octopus-energy-live/compare/v0.3.1...v0.3.2
 [0.4.0]: https://github.com/Ai-Lampy/homebridge-octopus-energy-live/compare/v0.3.2...v0.4.0
+[0.4.1]: https://github.com/Ai-Lampy/homebridge-octopus-energy-live/compare/v0.4.0...v0.4.1

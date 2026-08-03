@@ -53,7 +53,9 @@ export class OctopusMeterAccessory {
     });
     this.removeLegacyOutletCharacteristic(outlet, this.platform.Eve.Power);
     this.removeLegacyOutletCharacteristic(outlet, this.platform.Eve.TotalConsumption);
-    const meterService = this.accessory.getService(this.platform.Eve.EnergyMeterServiceUUID)
+    const meterService = this.accessory.services.find(
+      (service) => service.UUID === this.platform.Eve.EnergyMeterServiceUUID,
+    )
       || this.accessory.addService(this.platform.Eve.createEnergyMeterService(`${meter.name} Energy`));
     this.evePower = meterService.getCharacteristic(this.platform.Eve.Power);
     this.eveTotal = meterService.getCharacteristic(this.platform.Eve.TotalConsumption);

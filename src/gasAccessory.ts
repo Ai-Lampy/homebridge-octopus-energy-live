@@ -42,7 +42,9 @@ export class OctopusGasMeterAccessory {
     });
     this.removeLegacyOutletCharacteristic(outlet, this.platform.Eve.GasConsumption);
     this.removeLegacyOutletCharacteristic(outlet, this.platform.Eve.TotalGasConsumption);
-    const gasService = this.accessory.getService(this.platform.Eve.GasMeterServiceUUID)
+    const gasService = this.accessory.services.find(
+      (service) => service.UUID === this.platform.Eve.GasMeterServiceUUID,
+    )
       || this.accessory.addService(this.platform.Eve.createGasMeterService(`${meter.name} Usage`));
     this.intervalConsumption = gasService.getCharacteristic(this.platform.Eve.GasConsumption);
     this.totalConsumption = gasService.getCharacteristic(this.platform.Eve.TotalGasConsumption);

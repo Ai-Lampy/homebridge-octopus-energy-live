@@ -1,11 +1,47 @@
 const assert = require('node:assert/strict');
 const test = require('node:test');
 const {
+  advanceCumulativeEnergy,
   buildMatterCumulativeEnergyMeasurement,
   kWhToMatterMilliwattHours,
   livePowerForSide,
   wattsToMatterMilliwatts,
 } = require('../dist/energy');
+
+test('tracks cumulative interval energy once and never moves backwards', () => {
+  const first = advanceCumulativeEnergy(
+    0,
+    undefined,
+    0.4,
+    new Date('2026-08-03T21:30:00Z'),
+    1.2,
+  );
+  assert.deepEqual(first, {
+    totalKWh: 1.2,
+    lastIntervalEnd: '2026-08-03T21:30:00.000Z',
+  });
+
+  const duplicate = advanceCumulativeEnergy(
+    first.totalKWh,
+    first.lastIntervalEnd,
+    0.4,
+    new Date('2026-08-03T21:30:00Z'),
+    1.2,
+  );
+  assert.deepEqual(duplicate, first);
+
+  const next = advanceCumulativeEnergy(
+    duplicate.totalKWh,
+    duplicate.lastIntervalEnd,
+    0.35,
+    new Date('2026-08-03T22:00:00Z'),
+    1.55,
+  );
+  assert.deepEqual(next, {
+    totalKWh: 1.55,
+    lastIntervalEnd: '2026-08-03T22:00:00.000Z',
+  });
+});
 
 test('splits signed Home Mini demand into import and export power', () => {
   assert.equal(livePowerForSide('import', 725.5), 725.5);

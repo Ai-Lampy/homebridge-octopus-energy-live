@@ -7,6 +7,7 @@ const root = path.resolve(__dirname, '..');
 const packageJson = JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 'utf8'));
 const schema = JSON.parse(fs.readFileSync(path.join(root, 'config.schema.json'), 'utf8'));
 const platformSource = fs.readFileSync(path.join(root, 'src', 'platform.ts'), 'utf8');
+const eveSource = fs.readFileSync(path.join(root, 'src', 'eve.ts'), 'utf8');
 const settings = require('../dist/settings');
 
 test('keeps npm and Homebridge identifiers aligned', () => {
@@ -35,15 +36,22 @@ test('labels electricity accurately and provides optional gas settings', () => {
   assert.equal(schema.schema.properties.gas.title, 'Gas Meter (Optional)');
   assert(schema.schema.properties.gas.properties.mprn);
   assert(schema.schema.properties.gas.properties.meterSerial);
+  assert.equal(schema.schema.properties.gas.properties.exposeToMatter.default, false);
   assert(!schema.schema.required.includes('gas'));
 });
 
-test('registers all Matter energy meters as outlets', () => {
+test('registers electricity as an outlet and makes the gas workaround opt-in', () => {
   assert(platformSource.includes('matter.deviceTypes.OnOffOutlet'));
   assert(!platformSource.includes('matter.deviceTypes.ElectricalSensor'));
+  assert(platformSource.includes('meter.exposeToMatter === true'));
   assert(platformSource.includes('matter-outlet-gas-'));
   assert(platformSource.includes('matter-outlet-${side}-'));
   assert(platformSource.includes('this.pendingMatterRegistrations'));
   assert(platformSource.includes('const accessories = [...this.pendingMatterRegistrations]'));
   assert(!platformSource.includes('matter.updatePlatformAccessories'));
+});
+
+test('places compatibility characteristics on custom meter services', () => {
+  assert(eveSource.includes("new Service(displayName, energyMeterServiceUUID)"));
+  assert(eveSource.includes("new Service(displayName, gasMeterServiceUUID)"));
 });

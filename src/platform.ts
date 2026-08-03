@@ -28,6 +28,7 @@ interface GasMeterEntry {
   mprn: string;
   meterSerial: string;
   unit?: 'auto' | 'kWh' | 'm3';
+  exposeToMatter?: boolean;
 }
 
 interface PollingAccessory {
@@ -218,7 +219,9 @@ export class OctopusEnergyLivePlatform implements DynamicPlatformPlugin {
       meterSerial: meter.meterSerial,
       unit,
     } as GasMeterConfig;
-    const matterUuid = await this.registerMatterGasMeter(accessory.context.gas, accessory);
+    const matterUuid = meter.exposeToMatter === true
+      ? await this.registerMatterGasMeter(accessory.context.gas, accessory)
+      : undefined;
     this.managed.push(new OctopusGasMeterAccessory(
       this,
       accessory,
@@ -242,7 +245,9 @@ export class OctopusEnergyLivePlatform implements DynamicPlatformPlugin {
       }
     }
 
-    const activeMatterUuid = this.config.gas?.mprn?.trim() && this.config.gas?.meterSerial?.trim()
+    const activeMatterUuid = this.config.gas?.exposeToMatter === true
+      && this.config.gas.mprn?.trim()
+      && this.config.gas.meterSerial?.trim()
       ? this.gasMatterUuid(this.config.gas.mprn, this.config.gas.meterSerial)
       : undefined;
     const staleMatter = this.matterAccessories.filter(
@@ -272,10 +277,14 @@ export class OctopusEnergyLivePlatform implements DynamicPlatformPlugin {
 
     const uuid = this.gasMatterUuid(meter.mprn, meter.meterSerial);
     const existing = this.matterAccessories.find((accessory) => accessory.UUID === uuid);
-    const rawTotal = typeof hapAccessory.context.lastGasTotalConsumption === 'number'
-      ? hapAccessory.context.lastGasTotalConsumption
-      : 0;
-    const totalKWh = gasConsumptionToKWh(rawTotal, meter.unit);
+    const totalKWh = typeof hapAccessory.context.matterGasCumulativeKWh === 'number'
+      ? hapAccessory.context.matterGasCumulativeKWh
+      : gasConsumptionToKWh(
+        typeof hapAccessory.context.lastGasTotalConsumption === 'number'
+          ? hapAccessory.context.lastGasTotalConsumption
+          : 0,
+        meter.unit,
+      );
     const matterAccessory: MatterAccessory = existing ?? {
       UUID: uuid,
       displayName: meter.name,
@@ -472,7 +481,7 @@ export class OctopusEnergyLivePlatform implements DynamicPlatformPlugin {
         PLATFORM_NAME,
         accessories,
       );
-      this.log.info(`Submitted ${accessories.length} Matter outlet(s) for registration.`);
+      this.log.info(`Submitted ${accessories.length} Matter accessory endpoint(s) for registration.`);
     }
 
     this.pendingMatterUnregistrations.length = 0;

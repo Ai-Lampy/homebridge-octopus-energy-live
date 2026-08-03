@@ -20,7 +20,6 @@ interface MeterReading {
 }
 
 export class OctopusMeterAccessory {
-  private outletService: Service;
   private evePower: ReturnType<Service['getCharacteristic']> | null = null;
   private eveTotal: ReturnType<Service['getCharacteristic']> | null = null;
   private lastWatts = 0;
@@ -52,10 +51,12 @@ export class OctopusMeterAccessory {
       // This accessory is read-only; keep it "on" for classic HomeKit presence.
       outlet.updateCharacteristic(Characteristic.On, true);
     });
-    this.outletService = outlet;
-
-    this.evePower = this.ensureEveCharacteristic(this.platform.Eve.Power);
-    this.eveTotal = this.ensureEveCharacteristic(this.platform.Eve.TotalConsumption);
+    this.removeLegacyOutletCharacteristic(outlet, this.platform.Eve.Power);
+    this.removeLegacyOutletCharacteristic(outlet, this.platform.Eve.TotalConsumption);
+    const meterService = this.accessory.getService(this.platform.Eve.EnergyMeterServiceUUID)
+      || this.accessory.addService(this.platform.Eve.createEnergyMeterService(`${meter.name} Energy`));
+    this.evePower = meterService.getCharacteristic(this.platform.Eve.Power);
+    this.eveTotal = meterService.getCharacteristic(this.platform.Eve.TotalConsumption);
 
     this.lastWatts = typeof this.accessory.context.lastWatts === 'number' ? this.accessory.context.lastWatts : 0;
     this.lastTotalKWh = typeof this.accessory.context.totalKWh === 'number' ? this.accessory.context.totalKWh : 0;
@@ -78,17 +79,14 @@ export class OctopusMeterAccessory {
     }
   }
 
-  private ensureEveCharacteristic(charType: WithUUID<new () => Characteristic>) {
-    try {
-      return this.outletService.getCharacteristic(charType);
-    } catch {
-      try {
-        return this.outletService.addCharacteristic(charType);
-      } catch (error) {
-        this.platform.log.warn(`Failed to register Eve characteristic on ${this.meter.name}: ${
-          error instanceof Error ? error.message : String(error)
-        }`);
-        return null;
+  private removeLegacyOutletCharacteristic(
+    outlet: Service,
+    charType: WithUUID<new () => Characteristic>,
+  ): void {
+    if (outlet.testCharacteristic(charType.UUID)) {
+      const characteristic = outlet.getCharacteristic(charType.UUID);
+      if (characteristic) {
+        outlet.removeCharacteristic(characteristic);
       }
     }
   }

@@ -17,6 +17,38 @@ export interface MatterCumulativeEnergyMeasurement {
   endTimestamp?: number;
 }
 
+export interface TrackedCumulativeEnergy {
+  totalKWh: number;
+  lastIntervalEnd: string;
+}
+
+export function advanceCumulativeEnergy(
+  previousTotalKWh: number,
+  previousIntervalEnd: string | undefined,
+  intervalKWh: number,
+  intervalEnd: Date,
+  initialTotalKWh: number,
+): TrackedCumulativeEnergy {
+  const currentEnd = intervalEnd.toISOString();
+  const previousEndMs = previousIntervalEnd ? new Date(previousIntervalEnd).getTime() : Number.NaN;
+
+  if (!Number.isFinite(previousTotalKWh) || previousTotalKWh <= 0 || !previousIntervalEnd) {
+    return {
+      totalKWh: Math.max(0, initialTotalKWh, intervalKWh),
+      lastIntervalEnd: currentEnd,
+    };
+  }
+
+  if (!Number.isNaN(previousEndMs) && intervalEnd.getTime() <= previousEndMs) {
+    return { totalKWh: previousTotalKWh, lastIntervalEnd: previousIntervalEnd };
+  }
+
+  return {
+    totalKWh: Math.round((previousTotalKWh + Math.max(0, intervalKWh)) * 1_000_000) / 1_000_000,
+    lastIntervalEnd: currentEnd,
+  };
+}
+
 export function buildMatterCumulativeEnergyMeasurement(
   kWh: number,
   readAt: Date | undefined,

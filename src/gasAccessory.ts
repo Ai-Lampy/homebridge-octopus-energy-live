@@ -1,7 +1,7 @@
 import { Characteristic, CharacteristicValue, PlatformAccessory, Service, WithUUID } from 'homebridge';
 import { OctopusEnergyLivePlatform } from './platform';
 import { OctopusApiClient } from './octopusApi';
-import { buildMatterCumulativeEnergyMeasurement } from './energy';
+import { advanceCumulativeEnergy, buildMatterCumulativeEnergyMeasurement } from './energy';
 import { GAS_POLL_INTERVAL_MS, GasConsumptionUnit, gasConsumptionToKWh } from './gas';
 
 export interface GasMeterConfig {
@@ -12,11 +12,12 @@ export interface GasMeterConfig {
 }
 
 export class OctopusGasMeterAccessory {
-  private readonly outletService: Service;
   private readonly intervalConsumption: ReturnType<Service['getCharacteristic']> | null;
   private readonly totalConsumption: ReturnType<Service['getCharacteristic']> | null;
   private lastIntervalConsumption = 0;
   private lastTotalConsumption = 0;
+  private matterCumulativeKWh = 0;
+  private lastMatterIntervalEnd?: string;
   private timer?: NodeJS.Timeout;
 
   constructor(
@@ -39,10 +40,12 @@ export class OctopusGasMeterAccessory {
     outlet.getCharacteristic(Characteristic.On).onSet(async () => {
       outlet.updateCharacteristic(Characteristic.On, true);
     });
-    this.outletService = outlet;
-
-    this.intervalConsumption = this.ensureCharacteristic(this.platform.Eve.GasConsumption);
-    this.totalConsumption = this.ensureCharacteristic(this.platform.Eve.TotalGasConsumption);
+    this.removeLegacyOutletCharacteristic(outlet, this.platform.Eve.GasConsumption);
+    this.removeLegacyOutletCharacteristic(outlet, this.platform.Eve.TotalGasConsumption);
+    const gasService = this.accessory.getService(this.platform.Eve.GasMeterServiceUUID)
+      || this.accessory.addService(this.platform.Eve.createGasMeterService(`${meter.name} Usage`));
+    this.intervalConsumption = gasService.getCharacteristic(this.platform.Eve.GasConsumption);
+    this.totalConsumption = gasService.getCharacteristic(this.platform.Eve.TotalGasConsumption);
     this.intervalConsumption?.setProps({ unit: 'kWh' });
     this.totalConsumption?.setProps({ unit: 'kWh' });
 
@@ -52,6 +55,12 @@ export class OctopusGasMeterAccessory {
     this.lastTotalConsumption = typeof accessory.context.lastGasTotalConsumption === 'number'
       ? accessory.context.lastGasTotalConsumption
       : 0;
+    this.matterCumulativeKWh = typeof accessory.context.matterGasCumulativeKWh === 'number'
+      ? accessory.context.matterGasCumulativeKWh
+      : gasConsumptionToKWh(this.lastTotalConsumption, this.meter.unit);
+    this.lastMatterIntervalEnd = typeof accessory.context.lastMatterGasIntervalEnd === 'string'
+      ? accessory.context.lastMatterGasIntervalEnd
+      : accessory.context.lastGasReadAt;
     this.updateCachedCharacteristics();
   }
 
@@ -70,17 +79,14 @@ export class OctopusGasMeterAccessory {
     }
   }
 
-  private ensureCharacteristic(charType: WithUUID<new () => Characteristic>) {
-    try {
-      return this.outletService.getCharacteristic(charType);
-    } catch {
-      try {
-        return this.outletService.addCharacteristic(charType);
-      } catch (error) {
-        this.platform.log.warn(`Failed to register gas characteristic on ${this.meter.name}: ${
-          error instanceof Error ? error.message : String(error)
-        }`);
-        return null;
+  private removeLegacyOutletCharacteristic(
+    outlet: Service,
+    charType: WithUUID<new () => Characteristic>,
+  ): void {
+    if (outlet.testCharacteristic(charType.UUID)) {
+      const characteristic = outlet.getCharacteristic(charType.UUID);
+      if (characteristic) {
+        outlet.removeCharacteristic(characteristic);
       }
     }
   }
@@ -90,16 +96,30 @@ export class OctopusGasMeterAccessory {
       const reading = await this.client.fetchGasIntervalReading(this.meter.mprn, this.meter.meterSerial);
       this.lastIntervalConsumption = reading.intervalConsumption;
       this.lastTotalConsumption = reading.totalConsumption;
+      const intervalKWh = gasConsumptionToKWh(reading.intervalConsumption, this.meter.unit);
+      const cumulative = advanceCumulativeEnergy(
+        this.matterCumulativeKWh,
+        this.lastMatterIntervalEnd,
+        intervalKWh,
+        reading.periodEnd,
+        gasConsumptionToKWh(reading.totalConsumption, this.meter.unit),
+      );
+      this.matterCumulativeKWh = cumulative.totalKWh;
+      this.lastMatterIntervalEnd = cumulative.lastIntervalEnd;
       this.accessory.context.lastGasIntervalConsumption = reading.intervalConsumption;
       this.accessory.context.lastGasTotalConsumption = reading.totalConsumption;
       this.accessory.context.lastGasReadAt = reading.periodEnd.toISOString();
+      this.accessory.context.matterGasCumulativeKWh = this.matterCumulativeKWh;
+      this.accessory.context.lastMatterGasIntervalEnd = this.lastMatterIntervalEnd;
       this.updateCachedCharacteristics();
       await this.updateMatter();
       this.platform.api.updatePlatformAccessories([this.accessory]);
-      this.platform.log.debug(
+      this.platform.log.info(
         `${this.meter.name} updated from half-hourly REST data: ${
-          gasConsumptionToKWh(reading.intervalConsumption, this.meter.unit).toFixed(3)
-        } kWh latest interval, ${gasConsumptionToKWh(reading.totalConsumption, this.meter.unit).toFixed(3)} kWh today`,
+          intervalKWh.toFixed(3)
+        } kWh latest interval, ${gasConsumptionToKWh(reading.totalConsumption, this.meter.unit).toFixed(3)} kWh today, ${
+          this.matterCumulativeKWh.toFixed(3)
+        } kWh tracked cumulatively`,
       );
     } catch (error) {
       this.platform.log.warn(
@@ -128,7 +148,7 @@ export class OctopusGasMeterAccessory {
       matter.clusterNames.ElectricalEnergyMeasurement,
       {
         cumulativeEnergyImported: buildMatterCumulativeEnergyMeasurement(
-          gasConsumptionToKWh(this.lastTotalConsumption, this.meter.unit),
+          this.matterCumulativeKWh,
           undefined,
           false,
         ),

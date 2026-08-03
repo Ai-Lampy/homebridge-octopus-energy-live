@@ -1,10 +1,14 @@
-import { API, Characteristic, WithUUID } from 'homebridge';
+import { API, Characteristic, Service, WithUUID } from 'homebridge';
 
 export interface EveCharacteristics {
   Power: WithUUID<new () => Characteristic>;
   TotalConsumption: WithUUID<new () => Characteristic>;
   GasConsumption: WithUUID<new () => Characteristic>;
   TotalGasConsumption: WithUUID<new () => Characteristic>;
+  EnergyMeterServiceUUID: string;
+  GasMeterServiceUUID: string;
+  createEnergyMeterService(displayName: string): Service;
+  createGasMeterService(displayName: string): Service;
 }
 
 const UUID_POWER = 'E863F10A-079E-48FF-8F27-9C2605A29F52';
@@ -17,7 +21,7 @@ export function getEveCharacteristics(api: API): EveCharacteristics {
     return cached;
   }
 
-  const { Characteristic, Formats, Perms } = api.hap;
+  const { Characteristic, Formats, Perms, Service } = api.hap;
 
   class EvePower extends Characteristic {
     public static readonly UUID = UUID_POWER;
@@ -71,11 +75,28 @@ export function getEveCharacteristics(api: API): EveCharacteristics {
     }
   }
 
+  const energyMeterServiceUUID = api.hap.uuid.generate('homebridge-octopus-energy-live:energy-meter-service');
+  const gasMeterServiceUUID = api.hap.uuid.generate('homebridge-octopus-energy-live:gas-meter-service');
+
   cached = {
     Power: EvePower,
     TotalConsumption: EveTotalConsumption,
     GasConsumption,
     TotalGasConsumption,
+    EnergyMeterServiceUUID: energyMeterServiceUUID,
+    GasMeterServiceUUID: gasMeterServiceUUID,
+    createEnergyMeterService(displayName: string): Service {
+      const service = new Service(displayName, energyMeterServiceUUID);
+      service.addCharacteristic(EvePower);
+      service.addCharacteristic(EveTotalConsumption);
+      return service;
+    },
+    createGasMeterService(displayName: string): Service {
+      const service = new Service(displayName, gasMeterServiceUUID);
+      service.addCharacteristic(GasConsumption);
+      service.addCharacteristic(TotalGasConsumption);
+      return service;
+    },
   };
 
   return cached;

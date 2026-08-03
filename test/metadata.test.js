@@ -8,6 +8,8 @@ const packageJson = JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 
 const schema = JSON.parse(fs.readFileSync(path.join(root, 'config.schema.json'), 'utf8'));
 const platformSource = fs.readFileSync(path.join(root, 'src', 'platform.ts'), 'utf8');
 const eveSource = fs.readFileSync(path.join(root, 'src', 'eve.ts'), 'utf8');
+const electricityAccessorySource = fs.readFileSync(path.join(root, 'src', 'accessory.ts'), 'utf8');
+const gasAccessorySource = fs.readFileSync(path.join(root, 'src', 'gasAccessory.ts'), 'utf8');
 const settings = require('../dist/settings');
 
 test('keeps npm and Homebridge identifiers aligned', () => {
@@ -54,4 +56,6 @@ test('registers electricity as an outlet and makes the gas workaround opt-in', (
 test('places compatibility characteristics on custom meter services', () => {
   assert(eveSource.includes("new Service(displayName, energyMeterServiceUUID)"));
   assert(eveSource.includes("new Service(displayName, gasMeterServiceUUID)"));
+  assert(electricityAccessorySource.includes('service.UUID === this.platform.Eve.EnergyMeterServiceUUID'));
+  assert(gasAccessorySource.includes('service.UUID === this.platform.Eve.GasMeterServiceUUID'));
 });

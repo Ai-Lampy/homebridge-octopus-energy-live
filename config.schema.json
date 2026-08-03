@@ -58,7 +58,7 @@
       "gas": {
         "type": "object",
         "title": "Gas Meter (Optional)",
-        "description": "Octopus gas data is published in half-hour intervals and displayed as energy in kWh. Gas uses an MPRN, not an MPAN.",
+        "description": "Octopus gas data is read in half-hour intervals and converted to kWh. Matter and Apple Home do not currently define a native gas meter device. Gas uses an MPRN, not an MPAN.",
         "properties": {
           "name": {
             "type": "string",
@@ -84,6 +84,12 @@
               { "title": "Cubic metres (m³ / SMETS2)", "enum": ["m3"] },
               { "title": "Kilowatt-hours (kWh / SMETS1)", "enum": ["kWh"] }
             ]
+          },
+          "exposeToMatter": {
+            "type": "boolean",
+            "title": "Experimental Matter Outlet",
+            "description": "Expose gas as an electrical energy-monitoring outlet. Apple Home will show a power socket, may not display its gas kWh, and will not treat it as a native gas meter. Leave disabled unless you accept this limitation.",
+            "default": false
           }
         },
         "additionalProperties": false

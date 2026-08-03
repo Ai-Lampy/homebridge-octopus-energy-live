@@ -4,6 +4,25 @@ All notable changes to Octopus Energy Live are documented here.
 
 The project follows [Semantic Versioning](https://semver.org/).
 
+## [0.4.0] - 2026-08-03
+
+### Added
+
+- Added an opt-in **Experimental Matter Outlet** setting for gas. It is disabled by default because Matter and Homebridge do not currently expose a native gas-meter device type.
+- Added normal-level gas refresh messages showing the latest interval, today's total, and the locally tracked cumulative total.
+
+### Changed
+
+- Track gas energy monotonically across newly published half-hour intervals before sending it to Matter, instead of using a daily total that resets at midnight.
+- Moved electricity and gas compatibility characteristics onto dedicated custom HomeKit meter services.
+- Documented that one setup code commissions the complete Matter child bridge and that Apple Home's Energy Summary is not populated automatically from arbitrary Matter measurement clusters.
+
+### Fixed
+
+- Removed Homebridge warnings caused by adding custom electricity and gas characteristics directly to an Outlet service.
+- Removed a duplicated classic HomeKit accessory registration call.
+- Stopped presenting the experimental gas outlet as native gas support.
+
 ## [0.3.2] - 2026-08-01
 
 ### Fixed
@@ -68,3 +87,4 @@ The project follows [Semantic Versioning](https://semver.org/).
 [0.3.0]: https://github.com/Ai-Lampy/homebridge-octopus-energy-live/compare/v0.2.0...v0.3.0
 [0.3.1]: https://github.com/Ai-Lampy/homebridge-octopus-energy-live/compare/v0.3.0...v0.3.1
 [0.3.2]: https://github.com/Ai-Lampy/homebridge-octopus-energy-live/compare/v0.3.1...v0.3.2
+[0.4.0]: https://github.com/Ai-Lampy/homebridge-octopus-energy-live/compare/v0.3.2...v0.4.0

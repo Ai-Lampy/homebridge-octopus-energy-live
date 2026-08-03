@@ -1,6 +1,6 @@
 # Octopus Energy Live for Homebridge
 
-Homebridge platform plugin that publishes Octopus Energy electricity and gas usage as Matter outlets. On iOS 27, Apple Home can display electricity power and energy, while the optional gas outlet reports cumulative gas energy in kWh.
+Homebridge platform plugin that publishes live Octopus Energy electricity readings as a Matter energy-monitoring outlet. Optional gas readings are collected every half hour and remain available through classic HomeKit-compatible meter characteristics. An experimental gas-to-Matter outlet can be enabled with the limitations described below.
 
 ## Data sources
 
@@ -44,7 +44,8 @@ Install `homebridge-octopus-energy-live` from Homebridge UI, enable Matter in Ho
     "name": "Gas Meter",
     "mprn": "YOUR_GAS_MPRN",
     "meterSerial": "GAS_SERIAL",
-    "unit": "auto"
+    "unit": "auto",
+    "exposeToMatter": false
   },
   "export": {
     "name": "Octopus Export",
@@ -68,7 +69,9 @@ When Matter is enabled, each configured electricity meter is registered as a Mat
 - `ElectricalEnergyMeasurement.cumulativeEnergyImported` for import
 - `ElectricalEnergyMeasurement.cumulativeEnergyExported` for export
 
-The optional gas meter is also registered as a Matter `OnOffOutlet`, with `ElectricalEnergyMeasurement.cumulativeEnergyImported`. Every meter outlet remains on because it represents a read-only meter rather than a controllable appliance. Apple Home receives the gas total as kWh.
+Matter and Homebridge do not currently expose a native gas-meter device type. Gas is therefore not published to Matter by default. If **Experimental Matter Outlet** is enabled, the plugin represents gas as an always-on electrical outlet with `ElectricalEnergyMeasurement.cumulativeEnergyImported`. The reported value is a monotonic total tracked from Octopus half-hour intervals, but Apple Home still presents it as a power socket and may not display its kWh.
+
+One Matter setup code commissions the whole Homebridge child bridge. Electricity, optional export, and an enabled experimental gas outlet are endpoints inside that bridge; individual endpoints do not receive separate setup codes.
 
 The plugin also keeps read-only HomeKit Outlet services with Eve characteristics. Third-party HomeKit apps can use these values even when Matter is disabled.
 
@@ -78,8 +81,9 @@ The plugin also keeps read-only HomeKit Outlet services with Eve characteristics
 - Octopus live telemetry can be unavailable or rate-limited. The last value remains visible while the plugin retries and uses interval data where possible.
 - Some smart meter models do not provide live export. In that case export power can remain at zero even though delayed export energy is available.
 - Gas readings are half-hourly and can arrive late; they are not Home Mini live telemetry.
-- Matter has no native gas meter type, so Apple Home presents gas as an energy-monitoring outlet.
+- Matter has no native gas meter type in Homebridge's public plugin API. The experimental gas endpoint is therefore presented as an electrical outlet, not a true gas meter.
 - SMETS2 gas is converted from m³ using a representative calorific value of 39.2 MJ/m³. The official app or bill can differ slightly because the billing calorific value varies by region and day.
+- Apple Home can show current watts supplied by a Matter outlet, but its Energy Summary does not automatically list every accessory that exposes Matter electrical-measurement clusters. Apple's documented unified Energy experience uses entitled EnergyKit apps, which a Homebridge plugin cannot provide.
 - Homebridge's Matter bridge is community software and is not a certified Matter product, so Apple Home may show an uncertified-accessory warning.
 
 ## Development and GitHub builds
@@ -98,6 +102,7 @@ Running the manual **Publish to npm** workflow publishes the package version and
 ## Links
 
 - [Octopus Energy API documentation](https://developer.octopus.energy/)
+- [Apple EnergyKit documentation](https://developer.apple.com/documentation/EnergyKit)
 - [Homebridge Matter documentation](https://github.com/homebridge-plugins/homebridge-matter/wiki)
 - [GitHub repository](https://github.com/Ai-Lampy/homebridge-octopus-energy-live)
 

@@ -1,7 +1,7 @@
 {
   "name": "homebridge-octopus-energy-live",
   "displayName": "Octopus Energy Live",
-  "version": "0.3.2",
+  "version": "0.4.0",
   "description": "Display Octopus Energy electricity and gas smart meter data through Homebridge",
   "author": {
     "name": "lxmitch",

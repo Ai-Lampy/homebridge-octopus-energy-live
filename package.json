@@ -72,12 +72,12 @@
   },
   "devDependencies": {
     "homebridge": "^2.2.1",
-    "@types/node": "^20.14.2",
+    "@types/node": "^26.1.2",
     "@types/node-fetch": "^2.6.11",
-    "@typescript-eslint/eslint-plugin": "^7.8.0",
-    "@typescript-eslint/parser": "^7.8.0",
-    "eslint": "^8.57.0",
-    "rimraf": "^5.0.5",
-    "typescript": "^5.4.5"
+    "@typescript-eslint/eslint-plugin": "^8.66.0",
+    "@typescript-eslint/parser": "^8.66.0",
+    "eslint": "^10.8.0",
+    "rimraf": "^6.1.3",
+    "typescript": "^7.0.2"
   }
 }

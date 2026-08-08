@@ -47,6 +47,16 @@ jobs:
           echo "name=$(node -p "require('./package.json').name")" >> "$GITHUB_OUTPUT"
           echo "version=$(node -p "require('./package.json').version")" >> "$GITHUB_OUTPUT"
 
+      - name: Prepare release notes
+        env:
+          PACKAGE_NAME: ${{ steps.package.outputs.name }}
+          PACKAGE_VERSION: ${{ steps.package.outputs.version }}
+        shell: bash
+        run: |
+          node scripts/extract-release-notes.mjs > release-notes.md
+          printf '\nPublished package: https://www.npmjs.com/package/%s/v/%s\n' \
+            "$PACKAGE_NAME" "$PACKAGE_VERSION" >> release-notes.md
+
       - name: Check whether version is already published
         id: registry
         shell: bash
@@ -70,11 +80,12 @@ jobs:
         run: |
           tag="v${PACKAGE_VERSION}"
           if gh release view "$tag" >/dev/null 2>&1; then
-            echo "GitHub release $tag already exists; nothing to do."
+            gh release edit "$tag" \
+              --title "Octopus Energy Live ${PACKAGE_VERSION}" \
+              --notes-file release-notes.md
           else
             gh release create "$tag" \
               --target "$GITHUB_SHA" \
               --title "Octopus Energy Live ${PACKAGE_VERSION}" \
-              --notes "Published to npm: https://www.npmjs.com/package/${PACKAGE_NAME}/v/${PACKAGE_VERSION}" \
-              --generate-notes
+              --notes-file release-notes.md
           fi

@@ -4,6 +4,19 @@ All notable changes to Octopus Energy Live are documented here.
 
 The project follows [Semantic Versioning](https://semver.org/).
 
+## [0.4.2] - 2026-08-09
+
+### Added
+
+- Added Node.js 26 to the supported runtime range and continuous-integration test matrix.
+
+### Changed
+
+- Updated the development and test baseline to Homebridge 2.3.0.
+- Declared Homebridge only as a development dependency, as required by the Homebridge plugin verification checks.
+- GitHub Releases now contain the matching version's complete changelog section, so Homebridge displays the actual release notes during updates.
+- Prevented Dependabot from combining incompatible major versions of TypeScript, ESLint, and TypeScript ESLint in automated dependency updates.
+
 ## [0.4.1] - 2026-08-03
 
 ### Fixed
@@ -95,3 +108,4 @@ The project follows [Semantic Versioning](https://semver.org/).
 [0.3.2]: https://github.com/Ai-Lampy/homebridge-octopus-energy-live/compare/v0.3.1...v0.3.2
 [0.4.0]: https://github.com/Ai-Lampy/homebridge-octopus-energy-live/compare/v0.3.2...v0.4.0
 [0.4.1]: https://github.com/Ai-Lampy/homebridge-octopus-energy-live/compare/v0.4.0...v0.4.1
+[0.4.2]: https://github.com/Ai-Lampy/homebridge-octopus-energy-live/compare/v0.4.1...v0.4.2

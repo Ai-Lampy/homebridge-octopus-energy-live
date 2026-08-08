@@ -12,7 +12,7 @@ Homebridge platform plugin that publishes live Octopus Energy electricity readin
 
 ## Requirements
 
-- Node.js 22 or 24
+- Node.js 22, 24, or 26
 - Homebridge 2.2.1 or newer for Apple Home energy data
 - Matter enabled for the main bridge or this plugin's child bridge
 - iOS 27 and a Matter-capable Apple home hub
@@ -95,9 +95,9 @@ npm test
 npm pack --dry-run
 ```
 
-`npm test` compiles TypeScript into `dist/` before running the unit tests. The GitHub Actions workflow runs this sequence on Node.js 22 and 24 for every pull request and every push to `main`. Publishing to npm is intentionally not automated; a repository maintainer should review and publish a release explicitly.
+`npm test` compiles TypeScript into `dist/` before running the unit tests. The GitHub Actions workflow runs this sequence on Node.js 22, 24, and 26 for every pull request and every push to `main`. Publishing to npm is intentionally not automated; a repository maintainer should review and publish a release explicitly.
 
-Running the manual **Publish to npm** workflow publishes the package version and then creates a matching `vX.Y.Z` GitHub Release. GitHub generates the release notes from changes since the previous release, and the notes include a direct link to that version on npm. Re-running the workflow is safe when npm publication succeeded but GitHub Release creation did not: existing npm versions and GitHub Releases are detected and skipped.
+Running the manual **Publish to npm** workflow publishes the package version and then creates a matching `vX.Y.Z` GitHub Release. The release body is taken from that version's section in `CHANGELOG.md`, followed by a direct link to the published npm package. Re-running the workflow is safe when npm publication succeeded but release creation did not; it also repairs the notes on an existing matching GitHub Release.
 
 ## Links
 

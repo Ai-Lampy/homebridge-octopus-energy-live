@@ -10,7 +10,7 @@ Thank you for helping improve Octopus Energy Live.
 
 ## Development
 
-Use Node.js 22 or 24, then run:
+Use Node.js 22, 24, or 26, then run:
 
 ```bash
 npm ci

@@ -1,6 +1,7 @@
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
+const { execFileSync } = require('node:child_process');
 const test = require('node:test');
 
 const root = path.resolve(__dirname, '..');
@@ -10,6 +11,7 @@ const platformSource = fs.readFileSync(path.join(root, 'src', 'platform.ts'), 'u
 const eveSource = fs.readFileSync(path.join(root, 'src', 'eve.ts'), 'utf8');
 const electricityAccessorySource = fs.readFileSync(path.join(root, 'src', 'accessory.ts'), 'utf8');
 const gasAccessorySource = fs.readFileSync(path.join(root, 'src', 'gasAccessory.ts'), 'utf8');
+const dependabotSource = fs.readFileSync(path.join(root, '.github', 'dependabot.yml'), 'utf8');
 const settings = require('../dist/settings');
 
 test('keeps npm and Homebridge identifiers aligned', () => {
@@ -25,7 +27,42 @@ test('declares the transports and supported Node.js versions', () => {
   assert(packageJson.keywords.includes('homebridge-plugin'));
   assert(packageJson.keywords.includes('supports-hap'));
   assert(packageJson.keywords.includes('supports-matter'));
-  assert.equal(packageJson.engines.node, '^22.10.0 || ^24.0.0');
+  assert.equal(packageJson.engines.node, '^22.10.0 || ^24.0.0 || ^26.0.0');
+});
+
+test('declares Homebridge only as a development dependency', () => {
+  assert.equal(packageJson.devDependencies.homebridge, '^2.3.0');
+  assert.equal(packageJson.dependencies?.homebridge, undefined);
+  assert.equal(packageJson.optionalDependencies?.homebridge, undefined);
+  assert.equal(packageJson.peerDependencies?.homebridge, undefined);
+  assert(!packageJson.bundledDependencies?.includes('homebridge'));
+});
+
+test('builds GitHub release notes from the current changelog section', () => {
+  const notes = execFileSync(
+    process.execPath,
+    [path.join(root, 'scripts', 'extract-release-notes.mjs')],
+    { encoding: 'utf8' },
+  );
+  assert(notes.includes(`## [${packageJson.version}]`));
+  assert(notes.includes('### Added'));
+  assert(!notes.includes('## [0.4.1]'));
+});
+
+test('blocks incompatible automated toolchain major upgrades', () => {
+  for (const dependency of [
+    'typescript',
+    'eslint',
+    '@typescript-eslint/eslint-plugin',
+    '@typescript-eslint/parser',
+  ]) {
+    assert(dependabotSource.includes(`dependency-name: ${dependency}`)
+      || dependabotSource.includes(`dependency-name: "${dependency}"`));
+  }
+  assert.equal(
+    dependabotSource.match(/version-update:semver-major/g)?.length,
+    4,
+  );
 });
 
 test('includes release notes in the published package', () => {

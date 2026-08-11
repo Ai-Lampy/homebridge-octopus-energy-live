@@ -70,6 +70,13 @@ test('includes release notes in the published package', () => {
   assert(fs.existsSync(path.join(root, 'CHANGELOG.md')));
 });
 
+test('declares the Homebridge donation link as PayPal funding metadata', () => {
+  assert.deepEqual(packageJson.funding, {
+    type: 'paypal',
+    url: 'https://paypal.me/lxmitch',
+  });
+});
+
 test('labels electricity accurately and provides optional gas settings', () => {
   assert.equal(schema.schema.properties.import.title, 'Electricity Meter');
   assert.equal(schema.schema.properties.gas.title, 'Gas Meter (Optional)');
@@ -88,6 +95,8 @@ test('registers electricity as an outlet and makes the gas workaround opt-in', (
   assert(platformSource.includes('this.pendingMatterRegistrations'));
   assert(platformSource.includes('const accessories = [...this.pendingMatterRegistrations]'));
   assert(!platformSource.includes('matter.updatePlatformAccessories'));
+  assert(platformSource.includes('On/Off Plug-in Unit (0x010A) + Electrical Sensor (0x0510)'));
+  assert(platformSource.includes('PowerTopology (0x009C, TreeTopology)'));
 });
 
 test('places compatibility characteristics on custom meter services', () => {

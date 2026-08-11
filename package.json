@@ -1,7 +1,7 @@
 {
   "name": "homebridge-octopus-energy-live",
   "displayName": "Octopus Energy Live",
-  "version": "0.4.2",
+  "version": "0.4.3",
   "description": "Display Octopus Energy electricity and gas smart meter data through Homebridge",
   "author": {
     "name": "lxmitch",
@@ -21,6 +21,10 @@
   "homepage": "https://github.com/Ai-Lampy/homebridge-octopus-energy-live#readme",
   "bugs": {
     "url": "https://github.com/Ai-Lampy/homebridge-octopus-energy-live/issues"
+  },
+  "funding": {
+    "type": "paypal",
+    "url": "https://paypal.me/lxmitch"
   },
   "main": "dist/index.js",
   "files": [

@@ -318,6 +318,7 @@ export class OctopusEnergyLivePlatform implements DynamicPlatformPlugin {
       },
     };
 
+    this.logMatterProfile(meter.name, false, 'imported');
     this.queueMatterRegistration(matterAccessory);
     if (existing) {
       this.log.info('Restoring cached Matter gas outlet', meter.name);
@@ -420,6 +421,7 @@ export class OctopusEnergyLivePlatform implements DynamicPlatformPlugin {
       },
     };
 
+    this.logMatterProfile(meter.name, true, side === 'import' ? 'imported' : 'exported');
     this.queueMatterRegistration(matterAccessory);
     if (existing) {
       this.log.info('Restoring cached Matter energy outlet', meter.name);
@@ -441,6 +443,25 @@ export class OctopusEnergyLivePlatform implements DynamicPlatformPlugin {
       this.log.info('Removed legacy Matter energy sensor', meter.name);
     }
     return uuid;
+  }
+
+  private logMatterProfile(
+    displayName: string,
+    includesLivePower: boolean,
+    energyDirection: 'imported' | 'exported',
+  ): void {
+    const measurementClusters = includesLivePower
+      ? 'ElectricalPowerMeasurement (0x0090), ElectricalEnergyMeasurement (0x0091)'
+      : 'ElectricalEnergyMeasurement (0x0091)';
+
+    this.log.info(
+      `Matter profile for ${displayName}: bridged On/Off Plug-in Unit (0x010A) + Electrical Sensor (0x0510); `
+      + `OnOff (0x0006), ${measurementClusters}; cumulative energy ${energyDirection}.`,
+    );
+    this.log.debug(
+      `Homebridge assigns ${displayName}'s endpoint number and adds PowerTopology (0x009C, TreeTopology) `
+      + 'when it registers the electrical measurement clusters. Endpoint 0 remains the Matter root node.',
+    );
   }
 
   private queueMatterRegistration(accessory: MatterAccessory): void {

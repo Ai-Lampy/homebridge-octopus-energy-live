@@ -4,6 +4,18 @@ All notable changes to Octopus Energy Live are documented here.
 
 The project follows [Semantic Versioning](https://semver.org/).
 
+## [0.4.3] - 2026-08-11
+
+### Added
+
+- Added a Matter profile diagnostic at registration showing the outlet and electrical-sensor device types, measurement cluster IDs, and energy direction without logging meter credentials.
+- Added the maintainer's PayPal funding metadata so Homebridge can display its donation heart.
+
+### Documentation
+
+- Documented **Disable IPv4 (Matter)** as an optional child bridge stability setting, including when to revert it.
+- Clarified that Homebridge assigns bridged endpoint numbers and adds Power Topology (`0x009C`) with Tree Topology during registration.
+
 ## [0.4.2] - 2026-08-09
 
 ### Added
@@ -109,3 +121,4 @@ The project follows [Semantic Versioning](https://semver.org/).
 [0.4.0]: https://github.com/Ai-Lampy/homebridge-octopus-energy-live/compare/v0.3.2...v0.4.0
 [0.4.1]: https://github.com/Ai-Lampy/homebridge-octopus-energy-live/compare/v0.4.0...v0.4.1
 [0.4.2]: https://github.com/Ai-Lampy/homebridge-octopus-energy-live/compare/v0.4.1...v0.4.2
+[0.4.3]: https://github.com/Ai-Lampy/homebridge-octopus-energy-live/compare/v0.4.2...v0.4.3

@@ -28,6 +28,12 @@ Homebridge 1.x remains compatible with the classic Outlet and Eve characteristic
 
 Install `homebridge-octopus-energy-live` from Homebridge UI, enable Matter in Homebridge settings (a child bridge is recommended), and restart Homebridge. Pair the Matter bridge with Apple Home using the Matter QR code shown by Homebridge.
 
+### Recommended child bridge Matter setting
+
+If Matter discovery or subscriptions are unreliable, enable **Disable IPv4 (Matter)** in this plugin's Homebridge child bridge settings and restart Homebridge. Matter uses IPv6, and this option prevents Matter's optional IPv4 mDNS listener from competing with services such as Avahi on some installations.
+
+Leave the option disabled if Matter devices cannot be discovered on your network after enabling it. The plugin does not change this Homebridge setting automatically because network requirements vary between installations.
+
 ## Configuration
 
 ```json
@@ -70,6 +76,8 @@ When Matter is enabled, each configured electricity meter is registered as a Mat
 - `ElectricalPowerMeasurement.activePower` in milliwatts
 - `ElectricalEnergyMeasurement.cumulativeEnergyImported` for import
 - `ElectricalEnergyMeasurement.cumulativeEnergyExported` for export
+
+At registration, the plugin logs the intended Matter device types and cluster IDs. Homebridge debug logging additionally records that Homebridge assigns the endpoint number and supplies `PowerTopology` (`0x009C`) using `TreeTopology`. These diagnostics confirm that measurement data belongs to a bridged outlet endpoint rather than Matter Endpoint 0.
 
 Matter and Homebridge do not currently expose a native gas-meter device type. Gas is therefore not published to Matter by default. If **Experimental Matter Outlet** is enabled, the plugin represents gas as an always-on electrical outlet with `ElectricalEnergyMeasurement.cumulativeEnergyImported`. The reported value is a monotonic total tracked from Octopus half-hour intervals, but Apple Home still presents it as a power socket and may not display its kWh.
 

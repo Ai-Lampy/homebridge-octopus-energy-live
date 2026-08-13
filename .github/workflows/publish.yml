@@ -46,6 +46,13 @@ jobs:
         run: |
           echo "name=$(node -p "require('./package.json').name")" >> "$GITHUB_OUTPUT"
           echo "version=$(node -p "require('./package.json').version")" >> "$GITHUB_OUTPUT"
+          if node -e "process.exit(require('./package.json').version.includes('-') ? 0 : 1)"; then
+            echo "npm_tag=beta" >> "$GITHUB_OUTPUT"
+            echo "prerelease=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "npm_tag=latest" >> "$GITHUB_OUTPUT"
+            echo "prerelease=false" >> "$GITHUB_OUTPUT"
+          fi
 
       - name: Prepare release notes
         env:
@@ -69,23 +76,30 @@ jobs:
 
       - name: Publish package
         if: steps.registry.outputs.exists != 'true'
-        run: npm publish --provenance --access public
+        run: npm publish --provenance --access public --tag "${{ steps.package.outputs.npm_tag }}"
 
       - name: Create GitHub release with notes
         env:
           GH_TOKEN: ${{ github.token }}
           PACKAGE_NAME: ${{ steps.package.outputs.name }}
           PACKAGE_VERSION: ${{ steps.package.outputs.version }}
+          PRERELEASE: ${{ steps.package.outputs.prerelease }}
         shell: bash
         run: |
           tag="v${PACKAGE_VERSION}"
+          prerelease_args=()
+          if [ "$PRERELEASE" = "true" ]; then
+            prerelease_args+=(--prerelease)
+          fi
           if gh release view "$tag" >/dev/null 2>&1; then
             gh release edit "$tag" \
               --title "Octopus Energy Live ${PACKAGE_VERSION}" \
-              --notes-file release-notes.md
+              --notes-file release-notes.md \
+              "${prerelease_args[@]}"
           else
             gh release create "$tag" \
               --target "$GITHUB_SHA" \
               --title "Octopus Energy Live ${PACKAGE_VERSION}" \
-              --notes-file release-notes.md
+              --notes-file release-notes.md \
+              "${prerelease_args[@]}"
           fi

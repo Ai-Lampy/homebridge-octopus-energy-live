@@ -74,11 +74,22 @@ export function buildMatterDailyEnergyMeasurement(
   observedAt = new Date(),
 ): MatterCumulativeEnergyMeasurement {
   const validObservedAt = Number.isNaN(observedAt.getTime()) ? new Date() : observedAt;
-  const start = new Date(Date.UTC(
-    validObservedAt.getUTCFullYear(),
-    validObservedAt.getUTCMonth(),
-    validObservedAt.getUTCDate(),
-  ));
+  const dateParts = new Intl.DateTimeFormat('en-GB', {
+    timeZone: 'Europe/London',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).formatToParts(validObservedAt);
+  const value = (type: Intl.DateTimeFormatPartTypes): number => Number(
+    dateParts.find((part) => part.type === type)?.value,
+  );
+  const utcGuess = Date.UTC(value('year'), value('month') - 1, value('day'));
+  const hourAtGuess = Number(new Intl.DateTimeFormat('en-GB', {
+    timeZone: 'Europe/London',
+    hour: '2-digit',
+    hourCycle: 'h23',
+  }).format(new Date(utcGuess)));
+  const start = new Date(utcGuess - hourAtGuess * 60 * 60_000);
   const startTimestamp = Math.floor(start.getTime() / 1000);
   const endTimestamp = Math.max(startTimestamp + 1, Math.floor(validObservedAt.getTime() / 1000));
 

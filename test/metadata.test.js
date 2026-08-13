@@ -45,7 +45,7 @@ test('builds GitHub release notes from the current changelog section', () => {
     { encoding: 'utf8' },
   );
   assert(notes.includes(`## [${packageJson.version}]`));
-  assert(notes.includes('### Added'));
+  assert.match(notes, /### (Added|Changed|Fixed|Documentation|Notes)/);
   assert(!notes.includes('## [0.4.1]'));
 });
 

@@ -19,7 +19,7 @@ test('builds a bounded daily-consumption URL', () => {
     now: new Date('2026-07-31T18:45:00Z'),
     pageSize: 48,
   }));
-  assert.equal(url.searchParams.get('period_from'), '2026-07-31T00:00:00.000Z');
+  assert.equal(url.searchParams.get('period_from'), '2026-07-30T23:00:00.000Z');
   assert.equal(url.searchParams.get('page_size'), '48');
   assert.equal(url.searchParams.get('order_by'), 'period');
 });
@@ -34,7 +34,7 @@ test('builds gas URLs with an MPRN and encoded serial', () => {
     now: new Date('2026-07-31T18:45:00Z'),
     pageSize: 48,
   }));
-  assert.equal(today.searchParams.get('period_from'), '2026-07-31T00:00:00.000Z');
+  assert.equal(today.searchParams.get('period_from'), '2026-07-30T23:00:00.000Z');
   assert.equal(today.searchParams.get('page_size'), '48');
   assert.equal(today.searchParams.get('order_by'), 'period');
 });

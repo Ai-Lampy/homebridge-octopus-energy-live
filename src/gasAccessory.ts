@@ -123,7 +123,7 @@ export class OctopusGasMeterAccessory {
       this.updateCachedCharacteristics();
       const isNewInterval = !previousIntervalEnd
         || reading.periodEnd.getTime() > new Date(previousIntervalEnd).getTime();
-      if (isNewInterval) {
+      if (isNewInterval || this.meter.exposeDailyUsageToMatter) {
         await this.updateMatter();
       }
       this.platform.api.updatePlatformAccessories([this.accessory]);

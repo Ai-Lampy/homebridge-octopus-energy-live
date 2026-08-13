@@ -4,6 +4,13 @@ All notable changes to Octopus Energy Live are documented here.
 
 The project follows [Semantic Versioning](https://semver.org/).
 
+## [0.5.0-beta.1] - 2026-08-13
+
+### Fixed
+
+- Calculate gas used today from UK local midnight rather than UTC midnight, including the first BST hour of the day.
+- Refresh the Matter periodic daily gas measurement on every successful gas check, even when Octopus has not changed the latest interval timestamp.
+
 ## [0.5.0-beta.0] - 2026-08-13
 
 ### Added
@@ -140,3 +147,4 @@ The project follows [Semantic Versioning](https://semver.org/).
 [0.4.2]: https://github.com/Ai-Lampy/homebridge-octopus-energy-live/compare/v0.4.1...v0.4.2
 [0.4.3]: https://github.com/Ai-Lampy/homebridge-octopus-energy-live/compare/v0.4.2...v0.4.3
 [0.5.0-beta.0]: https://github.com/Ai-Lampy/homebridge-octopus-energy-live/compare/v0.4.3...v0.5.0-beta.0
+[0.5.0-beta.1]: https://github.com/Ai-Lampy/homebridge-octopus-energy-live/compare/v0.5.0-beta.0...v0.5.0-beta.1

@@ -3,6 +3,7 @@ const test = require('node:test');
 const {
   advanceCumulativeEnergy,
   buildMatterCumulativeEnergyMeasurement,
+  buildMatterDailyEnergyMeasurement,
   kWhToMatterMilliwattHours,
   livePowerForSide,
   wattsToMatterMilliwatts,
@@ -70,4 +71,15 @@ test('timestamps a true lifetime Home Mini register value', () => {
     energy: 12500000,
     endTimestamp: 1785531000,
   });
+});
+
+test('builds a valid UTC daily Matter periodic energy period', () => {
+  assert.deepEqual(
+    buildMatterDailyEnergyMeasurement(3.25, new Date('2026-08-13T08:24:19Z')),
+    {
+      energy: 3250000,
+      startTimestamp: 1786579200,
+      endTimestamp: 1786609459,
+    },
+  );
 });

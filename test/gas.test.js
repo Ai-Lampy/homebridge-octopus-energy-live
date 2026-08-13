@@ -1,13 +1,16 @@
 const assert = require('node:assert/strict');
 const test = require('node:test');
 const {
-  GAS_POLL_INTERVAL_MS,
+  gasPollIntervalMs,
   gasConsumptionToKWh,
   normaliseGasConsumptionUnit,
 } = require('../dist/gas');
 
-test('polls gas at the source half-hour interval', () => {
-  assert.equal(GAS_POLL_INTERVAL_MS, 30 * 60 * 1000);
+test('checks for newly published gas intervals every five minutes by default', () => {
+  assert.equal(gasPollIntervalMs(undefined), 5 * 60 * 1000);
+  assert.equal(gasPollIntervalMs(10), 10 * 60 * 1000);
+  assert.equal(gasPollIntervalMs(1), 5 * 60 * 1000);
+  assert.equal(gasPollIntervalMs(60), 30 * 60 * 1000);
 });
 
 test('normalises Octopus gas consumption units', () => {

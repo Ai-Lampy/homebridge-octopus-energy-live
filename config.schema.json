@@ -90,6 +90,20 @@
             "title": "Experimental Matter Outlet",
             "description": "Expose gas as an electrical energy-monitoring outlet. Apple Home will show a power socket, may not display its gas kWh, and will not treat it as a native gas meter. Leave disabled unless you accept this limitation.",
             "default": false
+          },
+          "exposeDailyUsageToMatter": {
+            "type": "boolean",
+            "title": "Show Today's Usage in Matter (Beta)",
+            "description": "Adds the standards-based Matter Periodic Energy value for gas used today. Experimental: Apple Home may choose not to display this value. Requires Experimental Matter Outlet and creates a new gas Matter endpoint when enabled.",
+            "default": false
+          },
+          "pollMinutes": {
+            "type": "number",
+            "title": "Gas Refresh Interval (minutes)",
+            "description": "How often to check for a newly published Octopus half-hour gas interval. Defaults to 5 minutes. Lower values are not allowed because the source is not live.",
+            "default": 5,
+            "minimum": 5,
+            "maximum": 30
           }
         },
         "additionalProperties": false

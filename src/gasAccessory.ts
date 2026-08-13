@@ -1,14 +1,20 @@
 import { Characteristic, CharacteristicValue, PlatformAccessory, Service, WithUUID } from 'homebridge';
 import { OctopusEnergyLivePlatform } from './platform';
 import { OctopusApiClient } from './octopusApi';
-import { advanceCumulativeEnergy, buildMatterCumulativeEnergyMeasurement } from './energy';
-import { GAS_POLL_INTERVAL_MS, GasConsumptionUnit, gasConsumptionToKWh } from './gas';
+import {
+  advanceCumulativeEnergy,
+  buildMatterCumulativeEnergyMeasurement,
+  buildMatterDailyEnergyMeasurement,
+} from './energy';
+import { GasConsumptionUnit, gasConsumptionToKWh, gasPollIntervalMs } from './gas';
 
 export interface GasMeterConfig {
   name: string;
   mprn: string;
   meterSerial: string;
   unit: GasConsumptionUnit;
+  pollMinutes?: number;
+  exposeDailyUsageToMatter?: boolean;
 }
 
 export class OctopusGasMeterAccessory {
@@ -71,7 +77,7 @@ export class OctopusGasMeterAccessory {
       return;
     }
     void this.refreshNow();
-    this.timer = setInterval(() => void this.refreshNow(), GAS_POLL_INTERVAL_MS);
+    this.timer = setInterval(() => void this.refreshNow(), gasPollIntervalMs(this.meter.pollMinutes));
   }
 
   public stopPolling(): void {
@@ -96,6 +102,7 @@ export class OctopusGasMeterAccessory {
   private async refreshNow(): Promise<void> {
     try {
       const reading = await this.client.fetchGasIntervalReading(this.meter.mprn, this.meter.meterSerial);
+      const previousIntervalEnd = this.lastMatterIntervalEnd;
       this.lastIntervalConsumption = reading.intervalConsumption;
       this.lastTotalConsumption = reading.totalConsumption;
       const intervalKWh = gasConsumptionToKWh(reading.intervalConsumption, this.meter.unit);
@@ -114,7 +121,11 @@ export class OctopusGasMeterAccessory {
       this.accessory.context.matterGasCumulativeKWh = this.matterCumulativeKWh;
       this.accessory.context.lastMatterGasIntervalEnd = this.lastMatterIntervalEnd;
       this.updateCachedCharacteristics();
-      await this.updateMatter();
+      const isNewInterval = !previousIntervalEnd
+        || reading.periodEnd.getTime() > new Date(previousIntervalEnd).getTime();
+      if (isNewInterval) {
+        await this.updateMatter();
+      }
       this.platform.api.updatePlatformAccessories([this.accessory]);
       this.platform.log.info(
         `${this.meter.name} updated from half-hourly REST data: ${
@@ -145,16 +156,23 @@ export class OctopusGasMeterAccessory {
       return;
     }
 
+    const energyState: Record<string, unknown> = {
+      cumulativeEnergyImported: buildMatterCumulativeEnergyMeasurement(
+        this.matterCumulativeKWh,
+        undefined,
+        false,
+      ),
+    };
+    if (this.meter.exposeDailyUsageToMatter) {
+      energyState.periodicEnergyImported = buildMatterDailyEnergyMeasurement(
+        gasConsumptionToKWh(this.lastTotalConsumption, this.meter.unit),
+      );
+    }
+
     await matter.updateAccessoryState(
       this.matterUuid,
       matter.clusterNames.ElectricalEnergyMeasurement,
-      {
-        cumulativeEnergyImported: buildMatterCumulativeEnergyMeasurement(
-          this.matterCumulativeKWh,
-          undefined,
-          false,
-        ),
-      },
+      energyState,
     );
   }
 }

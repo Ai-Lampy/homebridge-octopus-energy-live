@@ -14,6 +14,7 @@ export function kWhToMatterMilliwattHours(kWh: number): number {
 
 export interface MatterCumulativeEnergyMeasurement {
   energy: number;
+  startTimestamp?: number;
   endTimestamp?: number;
 }
 
@@ -66,4 +67,24 @@ export function buildMatterCumulativeEnergyMeasurement(
     measurement.endTimestamp = Math.floor(readAt.getTime() / 1000);
   }
   return measurement;
+}
+
+export function buildMatterDailyEnergyMeasurement(
+  kWh: number,
+  observedAt = new Date(),
+): MatterCumulativeEnergyMeasurement {
+  const validObservedAt = Number.isNaN(observedAt.getTime()) ? new Date() : observedAt;
+  const start = new Date(Date.UTC(
+    validObservedAt.getUTCFullYear(),
+    validObservedAt.getUTCMonth(),
+    validObservedAt.getUTCDate(),
+  ));
+  const startTimestamp = Math.floor(start.getTime() / 1000);
+  const endTimestamp = Math.max(startTimestamp + 1, Math.floor(validObservedAt.getTime() / 1000));
+
+  return {
+    energy: kWhToMatterMilliwattHours(kWh),
+    startTimestamp,
+    endTimestamp,
+  };
 }

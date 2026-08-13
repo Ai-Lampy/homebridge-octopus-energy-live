@@ -1,6 +1,13 @@
 export type GasConsumptionUnit = 'kWh' | 'm³';
 
-export const GAS_POLL_INTERVAL_MS = 30 * 60_000;
+export const DEFAULT_GAS_POLL_MINUTES = 5;
+export const MINIMUM_GAS_POLL_MINUTES = 5;
+export const MAXIMUM_GAS_POLL_MINUTES = 30;
+
+export function gasPollIntervalMs(minutes: number | undefined): number {
+  const requested = Number.isFinite(minutes) ? Number(minutes) : DEFAULT_GAS_POLL_MINUTES;
+  return Math.min(MAXIMUM_GAS_POLL_MINUTES, Math.max(MINIMUM_GAS_POLL_MINUTES, requested)) * 60_000;
+}
 export const GAS_VOLUME_CORRECTION_FACTOR = 1.02264;
 export const DEFAULT_GAS_CALORIFIC_VALUE = 39.2;
 

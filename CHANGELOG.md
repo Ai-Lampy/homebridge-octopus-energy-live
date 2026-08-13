@@ -4,6 +4,23 @@ All notable changes to Octopus Energy Live are documented here.
 
 The project follows [Semantic Versioning](https://semver.org/).
 
+## [0.5.0-beta.0] - 2026-08-13
+
+### Added
+
+- Added an opt-in **Show Today's Usage in Matter (Beta)** gas setting. It publishes today's gas consumption using Matter's standards-based `PeriodicEnergyImported` measurement while retaining the monotonic cumulative reading.
+- Added a configurable gas refresh interval from 5 to 30 minutes, defaulting to 5 minutes, so newly published half-hour readings are discovered sooner.
+
+### Changed
+
+- Gas Matter state is updated only when Octopus publishes a newer interval, avoiding duplicate energy events during the more frequent checks.
+- Beta package versions are published with npm's `beta` distribution tag and marked as GitHub prereleases, leaving the stable `latest` release untouched.
+
+### Notes
+
+- Apple Home controls how Matter periodic energy is presented and may not surface today's gas value in its interface.
+- Enabling the daily Matter option creates a new gas endpoint profile so existing stable endpoints and caches are not mutated in place.
+
 ## [0.4.3] - 2026-08-11
 
 ### Added
@@ -122,3 +139,4 @@ The project follows [Semantic Versioning](https://semver.org/).
 [0.4.1]: https://github.com/Ai-Lampy/homebridge-octopus-energy-live/compare/v0.4.0...v0.4.1
 [0.4.2]: https://github.com/Ai-Lampy/homebridge-octopus-energy-live/compare/v0.4.1...v0.4.2
 [0.4.3]: https://github.com/Ai-Lampy/homebridge-octopus-energy-live/compare/v0.4.2...v0.4.3
+[0.5.0-beta.0]: https://github.com/Ai-Lampy/homebridge-octopus-energy-live/compare/v0.4.3...v0.5.0-beta.0

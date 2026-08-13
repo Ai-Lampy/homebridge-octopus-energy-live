@@ -83,6 +83,8 @@ test('labels electricity accurately and provides optional gas settings', () => {
   assert(schema.schema.properties.gas.properties.mprn);
   assert(schema.schema.properties.gas.properties.meterSerial);
   assert.equal(schema.schema.properties.gas.properties.exposeToMatter.default, false);
+  assert.equal(schema.schema.properties.gas.properties.exposeDailyUsageToMatter.default, false);
+  assert.equal(schema.schema.properties.gas.properties.pollMinutes.default, 5);
   assert(!schema.schema.required.includes('gas'));
 });
 
@@ -91,6 +93,7 @@ test('registers electricity as an outlet and makes the gas workaround opt-in', (
   assert(!platformSource.includes('matter.deviceTypes.ElectricalSensor'));
   assert(platformSource.includes('meter.exposeToMatter === true'));
   assert(platformSource.includes('matter-outlet-gas-'));
+  assert(platformSource.includes('periodicEnergyImported'));
   assert(platformSource.includes('matter-outlet-${side}-'));
   assert(platformSource.includes('this.pendingMatterRegistrations'));
   assert(platformSource.includes('const accessories = [...this.pendingMatterRegistrations]'));

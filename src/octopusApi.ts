@@ -228,7 +228,7 @@ export class OctopusApiClient {
   public async fetchGasIntervalReading(mprn: string, meterSerial: string): Promise<GasIntervalReading> {
     const cacheKey = `${mprn.trim()}-${meterSerial.trim()}`;
     const cached = this.gasIntervalCache.get(cacheKey);
-    if (cached && Date.now() - cached.fetchedAt < 25 * 60_000) {
+    if (cached && Date.now() - cached.fetchedAt < 4 * 60_000) {
       return cached.promise;
     }
 

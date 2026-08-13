@@ -18,8 +18,12 @@ export interface ParsedGasTelemetry {
 export const DEFAULT_GAS_POLL_MINUTES = 5;
 export const MINIMUM_GAS_POLL_MINUTES = 5;
 export const MAXIMUM_GAS_POLL_MINUTES = 30;
+export const GAS_TELEMETRY_POLL_MINUTES = 30;
 
-export function gasPollIntervalMs(minutes: number | undefined): number {
+export function gasPollIntervalMs(minutes: number | undefined, useLiveTelemetry = false): number {
+  if (useLiveTelemetry) {
+    return GAS_TELEMETRY_POLL_MINUTES * 60_000;
+  }
   const requested = Number.isFinite(minutes) ? Number(minutes) : DEFAULT_GAS_POLL_MINUTES;
   return Math.min(MAXIMUM_GAS_POLL_MINUTES, Math.max(MINIMUM_GAS_POLL_MINUTES, requested)) * 60_000;
 }
@@ -71,12 +75,13 @@ export function parseGasTelemetry(samples: GasTelemetrySample[]): ParsedGasTelem
   const previous = readings[readings.length - 2];
   const reportedDelta = finiteNumber(latest.sample.consumptionDelta);
   const intervalWh = reportedDelta ?? Math.max(0, latest.consumptionWh! - previous.consumptionWh!);
+  const reportedDemandWatts = Math.max(0, finiteNumber(latest.sample.demand) ?? 0);
 
   return {
     intervalKWh: roundKWh(intervalWh / 1000),
     todayKWh: roundKWh(Math.max(0, latest.consumptionWh! - first.consumptionWh!) / 1000),
     cumulativeKWh: roundKWh(Math.max(0, latest.consumptionWh!) / 1000),
-    demandWatts: Math.max(0, finiteNumber(latest.sample.demand) ?? 0),
+    demandWatts: reportedDemandWatts,
     periodEnd: latest.readAt!,
   };
 }

@@ -12,6 +12,7 @@ test('checks for newly published gas intervals every five minutes by default', (
   assert.equal(gasPollIntervalMs(10), 10 * 60 * 1000);
   assert.equal(gasPollIntervalMs(1), 5 * 60 * 1000);
   assert.equal(gasPollIntervalMs(60), 30 * 60 * 1000);
+  assert.equal(gasPollIntervalMs(5, true), 30 * 60 * 1000);
 });
 
 test('calculates gas used today from cumulative Home Mini telemetry', () => {

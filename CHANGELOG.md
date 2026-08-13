@@ -4,6 +4,20 @@ All notable changes to Octopus Energy Live are documented here.
 
 The project follows [Semantic Versioning](https://semver.org/).
 
+## [0.5.0-beta.4] - 2026-08-13
+
+### Fixed
+
+- Stop presenting a delayed five-minute gas interval as if it were instantaneous power. The gas outlet retains its power-measurement capability for Apple Home classification but reports power as unavailable.
+
+### Changed
+
+- Refresh Home Mini gas telemetry every 30 minutes and publish the current daily consumption through Matter's periodic energy measurement.
+
+### Notes
+
+- Apple Home controls whether it displays Matter periodic energy on an accessory screen. The plugin does not mislabel daily kWh as watts to force it into the outlet subtitle.
+
 ## [0.5.0-beta.3] - 2026-08-13
 
 ### Changed
@@ -181,3 +195,4 @@ The project follows [Semantic Versioning](https://semver.org/).
 [0.5.0-beta.1]: https://github.com/Ai-Lampy/homebridge-octopus-energy-live/compare/v0.5.0-beta.0...v0.5.0-beta.1
 [0.5.0-beta.2]: https://github.com/Ai-Lampy/homebridge-octopus-energy-live/compare/v0.5.0-beta.1...v0.5.0-beta.2
 [0.5.0-beta.3]: https://github.com/Ai-Lampy/homebridge-octopus-energy-live/compare/v0.5.0-beta.2...v0.5.0-beta.3
+[0.5.0-beta.4]: https://github.com/Ai-Lampy/homebridge-octopus-energy-live/compare/v0.5.0-beta.3...v0.5.0-beta.4

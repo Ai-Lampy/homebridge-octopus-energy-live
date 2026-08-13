@@ -365,9 +365,6 @@ export class OctopusEnergyLivePlatform implements DynamicPlatformPlugin {
           : 0,
         meter.unit,
       );
-    const lastDemandWatts = typeof hapAccessory.context.lastGasDemandWatts === 'number'
-      ? hapAccessory.context.lastGasDemandWatts
-      : 0;
     if (meter.exposeDailyUsageToMatter) {
       electricalEnergyMeasurement.periodicEnergyImported = buildMatterDailyEnergyMeasurement(
         lastTodayKWh,
@@ -376,7 +373,7 @@ export class OctopusEnergyLivePlatform implements DynamicPlatformPlugin {
     matterAccessory.clusters = {
       onOff: { onOff: true },
       ...(meter.useLiveTelemetry
-        ? { electricalPowerMeasurement: { activePower: wattsToMatterMilliwatts(lastDemandWatts) } }
+        ? { electricalPowerMeasurement: { activePower: null } }
         : {}),
       electricalEnergyMeasurement,
     };

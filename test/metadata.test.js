@@ -96,7 +96,7 @@ test('registers electricity as an outlet and makes the gas workaround opt-in', (
   assert(platformSource.includes('meter.exposeToMatter === true'));
   assert(platformSource.includes('matter-outlet-gas-'));
   assert(platformSource.includes('periodicEnergyImported'));
-  assert(platformSource.includes('electricalPowerMeasurement: { activePower: wattsToMatterMilliwatts(lastDemandWatts) }'));
+  assert(platformSource.includes('electricalPowerMeasurement: { activePower: null }'));
   assert(platformSource.includes("includesLivePower ? 'telemetry-' : ''"));
   assert(platformSource.includes('matter-outlet-${side}-'));
   assert(platformSource.includes('this.pendingMatterRegistrations'));

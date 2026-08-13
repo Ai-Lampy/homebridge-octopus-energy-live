@@ -78,7 +78,7 @@ test('builds a valid UTC daily Matter periodic energy period', () => {
     buildMatterDailyEnergyMeasurement(3.25, new Date('2026-08-13T08:24:19Z')),
     {
       energy: 3250000,
-      startTimestamp: 1786579200,
+      startTimestamp: 1786575600,
       endTimestamp: 1786609459,
     },
   );

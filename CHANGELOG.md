@@ -4,6 +4,22 @@ All notable changes to Octopus Energy Live are documented here.
 
 The project follows [Semantic Versioning](https://semver.org/).
 
+## [0.5.0-beta.2] - 2026-08-13
+
+### Added
+
+- Added opt-in Home Mini gas telemetry using the GSME device ID discovered from the Octopus GraphQL account data.
+- Added an optional GSME EUI64 override for accounts where automatic gas-device discovery is unavailable.
+
+### Changed
+
+- Calculate today's experimental gas value from the Home Mini's cumulative telemetry register, while retaining the official half-hourly REST API as an automatic fallback.
+- Cache live telemetry separately for each physical meter and limit electricity polling to 60 seconds when gas telemetry is enabled, keeping combined requests within Octopus's documented user rate limit.
+
+### Notes
+
+- Home Mini gas telemetry remains opt-in while it is validated across SMETS1 and SMETS2 installations. Existing configurations continue using REST without any behaviour change.
+
 ## [0.5.0-beta.1] - 2026-08-13
 
 ### Fixed
@@ -148,3 +164,4 @@ The project follows [Semantic Versioning](https://semver.org/).
 [0.4.3]: https://github.com/Ai-Lampy/homebridge-octopus-energy-live/compare/v0.4.2...v0.4.3
 [0.5.0-beta.0]: https://github.com/Ai-Lampy/homebridge-octopus-energy-live/compare/v0.4.3...v0.5.0-beta.0
 [0.5.0-beta.1]: https://github.com/Ai-Lampy/homebridge-octopus-energy-live/compare/v0.5.0-beta.0...v0.5.0-beta.1
+[0.5.0-beta.2]: https://github.com/Ai-Lampy/homebridge-octopus-energy-live/compare/v0.5.0-beta.1...v0.5.0-beta.2

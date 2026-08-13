@@ -5,7 +5,7 @@ export interface TodayUrlOptions {
 
 type MeterFuel = 'electricity' | 'gas';
 
-function ukDayStart(now: Date): Date {
+export function ukDayStart(now: Date): Date {
   const dateParts = new Intl.DateTimeFormat('en-GB', {
     timeZone: 'Europe/London',
     year: 'numeric',

@@ -85,6 +85,8 @@ test('labels electricity accurately and provides optional gas settings', () => {
   assert.equal(schema.schema.properties.gas.properties.exposeToMatter.default, false);
   assert.equal(schema.schema.properties.gas.properties.exposeDailyUsageToMatter.default, false);
   assert.equal(schema.schema.properties.gas.properties.pollMinutes.default, 5);
+  assert.equal(schema.schema.properties.gas.properties.useLiveTelemetry.default, false);
+  assert(schema.schema.properties.gas.properties.homeMiniDeviceId);
   assert(!schema.schema.required.includes('gas'));
 });
 

@@ -104,6 +104,17 @@
             "default": 5,
             "minimum": 5,
             "maximum": 30
+          },
+          "useLiveTelemetry": {
+            "type": "boolean",
+            "title": "Experimental Home Mini Gas Telemetry",
+            "description": "Use the Home Mini GSME telemetry feed to calculate today's gas usage. Falls back to the official half-hourly REST endpoint automatically. When electricity telemetry is also active, its polling interval is limited to 60 seconds to remain within Octopus API rate limits.",
+            "default": false
+          },
+          "homeMiniDeviceId": {
+            "type": "string",
+            "title": "Home Mini Gas Meter Device ID (optional)",
+            "description": "Optional GSME EUI64 override, for example 12-34-5A-FF-FF-6B-C7-89. Normally discovered automatically from the account number, MPRN, and meter serial."
           }
         },
         "additionalProperties": false

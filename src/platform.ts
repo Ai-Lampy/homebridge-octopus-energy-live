@@ -31,6 +31,8 @@ interface GasMeterEntry {
   exposeToMatter?: boolean;
   exposeDailyUsageToMatter?: boolean;
   pollMinutes?: number;
+  useLiveTelemetry?: boolean;
+  homeMiniDeviceId?: string;
 }
 
 interface PollingAccessory {
@@ -144,6 +146,11 @@ export class OctopusEnergyLivePlatform implements DynamicPlatformPlugin {
       }
     }
 
+    if (this.config.gas?.useLiveTelemetry === true && this.pollSeconds < 60) {
+      this.pollSeconds = 60;
+      this.log.info('Using a 60-second electricity polling interval to stay within the Octopus telemetry rate limit.');
+    }
+
     await this.registerMeter('import', this.config.import);
 
     let gasUuid: string | undefined;
@@ -170,6 +177,20 @@ export class OctopusEnergyLivePlatform implements DynamicPlatformPlugin {
 
   private async registerGasMeter(meter: GasMeterEntry, uuid: string): Promise<void> {
     let unit: GasConsumptionUnit;
+    let gasDeviceId = meter.homeMiniDeviceId?.trim() || undefined;
+    let discoveredDetails: Awaited<ReturnType<OctopusApiClient['discoverGasMeterDetails']>> | undefined;
+    if (this.config.accountNumber?.trim() && (meter.unit === undefined || meter.unit === 'auto' || (meter.useLiveTelemetry && !gasDeviceId))) {
+      try {
+        discoveredDetails = await this.client.discoverGasMeterDetails(
+          this.config.accountNumber,
+          meter.mprn,
+          meter.meterSerial,
+        );
+        gasDeviceId ||= discoveredDetails.deviceId;
+      } catch (error) {
+        this.log.warn(`Could not discover gas meter details: ${error instanceof Error ? error.message : String(error)}`);
+      }
+    }
     if (meter.unit === 'kWh') {
       unit = 'kWh';
     } else if (meter.unit === 'm3') {
@@ -183,10 +204,8 @@ export class OctopusEnergyLivePlatform implements DynamicPlatformPlugin {
         );
       } else {
         try {
-          unit = await this.client.discoverGasConsumptionUnit(
-            this.config.accountNumber,
-            meter.mprn,
-            meter.meterSerial,
+          unit = discoveredDetails?.unit ?? await this.client.discoverGasConsumptionUnit(
+            this.config.accountNumber, meter.mprn, meter.meterSerial,
           );
           this.log.info(`Detected gas consumption unit: ${unit}.`);
         } catch (error) {
@@ -200,6 +219,13 @@ export class OctopusEnergyLivePlatform implements DynamicPlatformPlugin {
           );
         }
       }
+    }
+
+    const useLiveTelemetry = meter.useLiveTelemetry === true && Boolean(gasDeviceId);
+    if (meter.useLiveTelemetry && !gasDeviceId) {
+      this.log.warn('Home Mini gas telemetry was enabled but no GSME device ID was found; using half-hourly REST data.');
+    } else if (useLiveTelemetry) {
+      this.log.info('Discovered a Home Mini gas meter for experimental telemetry.');
     }
 
     const name = meter.name || 'Gas Meter';
@@ -222,6 +248,8 @@ export class OctopusEnergyLivePlatform implements DynamicPlatformPlugin {
       unit,
       pollMinutes: meter.pollMinutes,
       exposeDailyUsageToMatter: meter.exposeDailyUsageToMatter === true,
+      useLiveTelemetry,
+      homeMiniDeviceId: gasDeviceId,
     } as GasMeterConfig;
     const matterUuid = meter.exposeToMatter === true
       ? await this.registerMatterGasMeter(accessory.context.gas, accessory)
@@ -287,6 +315,10 @@ export class OctopusEnergyLivePlatform implements DynamicPlatformPlugin {
     const existing = this.matterAccessories.find((accessory) => accessory.UUID === uuid);
     const totalKWh = typeof hapAccessory.context.matterGasCumulativeKWh === 'number'
       ? hapAccessory.context.matterGasCumulativeKWh
+      : hapAccessory.context.lastGasValuesAreKWh === true
+        ? (typeof hapAccessory.context.lastGasCumulativeKWh === 'number'
+          ? hapAccessory.context.lastGasCumulativeKWh
+          : 0)
       : gasConsumptionToKWh(
         typeof hapAccessory.context.lastGasTotalConsumption === 'number'
           ? hapAccessory.context.lastGasTotalConsumption

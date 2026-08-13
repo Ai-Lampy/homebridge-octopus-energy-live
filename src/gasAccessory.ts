@@ -15,6 +15,8 @@ export interface GasMeterConfig {
   unit: GasConsumptionUnit;
   pollMinutes?: number;
   exposeDailyUsageToMatter?: boolean;
+  useLiveTelemetry?: boolean;
+  homeMiniDeviceId?: string;
 }
 
 export class OctopusGasMeterAccessory {
@@ -22,9 +24,11 @@ export class OctopusGasMeterAccessory {
   private readonly totalConsumption: ReturnType<Service['getCharacteristic']> | null;
   private lastIntervalConsumption = 0;
   private lastTotalConsumption = 0;
+  private lastValuesAreKWh = false;
   private matterCumulativeKWh = 0;
   private lastMatterIntervalEnd?: string;
   private timer?: NodeJS.Timeout;
+  private liveTelemetryFailed = false;
 
   constructor(
     private readonly platform: OctopusEnergyLivePlatform,
@@ -63,6 +67,7 @@ export class OctopusGasMeterAccessory {
     this.lastTotalConsumption = typeof accessory.context.lastGasTotalConsumption === 'number'
       ? accessory.context.lastGasTotalConsumption
       : 0;
+    this.lastValuesAreKWh = accessory.context.lastGasValuesAreKWh === true;
     this.matterCumulativeKWh = typeof accessory.context.matterGasCumulativeKWh === 'number'
       ? accessory.context.matterGasCumulativeKWh
       : gasConsumptionToKWh(this.lastTotalConsumption, this.meter.unit);
@@ -101,22 +106,35 @@ export class OctopusGasMeterAccessory {
 
   private async refreshNow(): Promise<void> {
     try {
-      const reading = await this.client.fetchGasIntervalReading(this.meter.mprn, this.meter.meterSerial);
+      const reading = await this.fetchReading();
       const previousIntervalEnd = this.lastMatterIntervalEnd;
       this.lastIntervalConsumption = reading.intervalConsumption;
       this.lastTotalConsumption = reading.totalConsumption;
-      const intervalKWh = gasConsumptionToKWh(reading.intervalConsumption, this.meter.unit);
-      const cumulative = advanceCumulativeEnergy(
-        this.matterCumulativeKWh,
-        this.lastMatterIntervalEnd,
-        intervalKWh,
-        reading.periodEnd,
-        gasConsumptionToKWh(reading.totalConsumption, this.meter.unit),
-      );
+      this.lastValuesAreKWh = reading.valuesAreKWh === true;
+      const intervalKWh = reading.valuesAreKWh
+        ? reading.intervalConsumption
+        : gasConsumptionToKWh(reading.intervalConsumption, this.meter.unit);
+      const todayKWh = reading.valuesAreKWh
+        ? reading.totalConsumption
+        : gasConsumptionToKWh(reading.totalConsumption, this.meter.unit);
+      const cumulative = reading.cumulativeKWh === undefined
+        ? advanceCumulativeEnergy(
+          this.matterCumulativeKWh,
+          this.lastMatterIntervalEnd,
+          intervalKWh,
+          reading.periodEnd,
+          todayKWh,
+        )
+        : {
+          totalKWh: reading.cumulativeKWh,
+          lastIntervalEnd: reading.periodEnd.toISOString(),
+        };
       this.matterCumulativeKWh = cumulative.totalKWh;
       this.lastMatterIntervalEnd = cumulative.lastIntervalEnd;
       this.accessory.context.lastGasIntervalConsumption = reading.intervalConsumption;
       this.accessory.context.lastGasTotalConsumption = reading.totalConsumption;
+      this.accessory.context.lastGasValuesAreKWh = this.lastValuesAreKWh;
+      this.accessory.context.lastGasCumulativeKWh = reading.cumulativeKWh;
       this.accessory.context.lastGasReadAt = reading.periodEnd.toISOString();
       this.accessory.context.matterGasCumulativeKWh = this.matterCumulativeKWh;
       this.accessory.context.lastMatterGasIntervalEnd = this.lastMatterIntervalEnd;
@@ -128,9 +146,9 @@ export class OctopusGasMeterAccessory {
       }
       this.platform.api.updatePlatformAccessories([this.accessory]);
       this.platform.log.info(
-        `${this.meter.name} updated from half-hourly REST data: ${
+        `${this.meter.name} updated from ${reading.valuesAreKWh ? 'Home Mini gas telemetry' : 'half-hourly REST data'}: ${
           intervalKWh.toFixed(3)
-        } kWh latest interval, ${gasConsumptionToKWh(reading.totalConsumption, this.meter.unit).toFixed(3)} kWh today, ${
+        } kWh latest interval, ${todayKWh.toFixed(3)} kWh today, ${
           this.matterCumulativeKWh.toFixed(3)
         } kWh tracked cumulatively`,
       );
@@ -141,12 +159,39 @@ export class OctopusGasMeterAccessory {
     }
   }
 
+  private async fetchReading() {
+    if (!this.meter.useLiveTelemetry || !this.meter.homeMiniDeviceId) {
+      return this.client.fetchGasIntervalReading(this.meter.mprn, this.meter.meterSerial);
+    }
+    try {
+      const reading = await this.client.fetchGasLiveReading(this.meter.homeMiniDeviceId);
+      if (this.liveTelemetryFailed) {
+        this.platform.log.info(`${this.meter.name} Home Mini gas telemetry recovered.`);
+      }
+      this.liveTelemetryFailed = false;
+      return reading;
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      if (!this.liveTelemetryFailed) {
+        this.platform.log.warn(`${this.meter.name} Home Mini gas telemetry failed; using REST fallback: ${message}`);
+      } else {
+        this.platform.log.debug(`${this.meter.name} Home Mini gas telemetry still unavailable: ${message}`);
+      }
+      this.liveTelemetryFailed = true;
+      return this.client.fetchGasIntervalReading(this.meter.mprn, this.meter.meterSerial);
+    }
+  }
+
   private updateCachedCharacteristics(): void {
     this.intervalConsumption?.updateValue(
-      gasConsumptionToKWh(this.lastIntervalConsumption, this.meter.unit) as CharacteristicValue,
+      (this.lastValuesAreKWh
+        ? this.lastIntervalConsumption
+        : gasConsumptionToKWh(this.lastIntervalConsumption, this.meter.unit)) as CharacteristicValue,
     );
     this.totalConsumption?.updateValue(
-      gasConsumptionToKWh(this.lastTotalConsumption, this.meter.unit) as CharacteristicValue,
+      (this.lastValuesAreKWh
+        ? this.lastTotalConsumption
+        : gasConsumptionToKWh(this.lastTotalConsumption, this.meter.unit)) as CharacteristicValue,
     );
   }
 
@@ -165,7 +210,9 @@ export class OctopusGasMeterAccessory {
     };
     if (this.meter.exposeDailyUsageToMatter) {
       energyState.periodicEnergyImported = buildMatterDailyEnergyMeasurement(
-        gasConsumptionToKWh(this.lastTotalConsumption, this.meter.unit),
+        this.lastValuesAreKWh
+          ? this.lastTotalConsumption
+          : gasConsumptionToKWh(this.lastTotalConsumption, this.meter.unit),
       );
     }
 

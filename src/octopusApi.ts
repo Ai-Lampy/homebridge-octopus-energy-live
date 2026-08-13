@@ -6,7 +6,13 @@ import {
   buildTodayConsumptionUrl,
   buildTodayGasConsumptionUrl,
 } from './octopusUrls';
-import { GasConsumptionUnit, normaliseGasConsumptionUnit } from './gas';
+import { ukDayStart } from './octopusUrls';
+import {
+  GasConsumptionUnit,
+  GasTelemetrySample,
+  normaliseGasConsumptionUnit,
+  parseGasTelemetry,
+} from './gas';
 
 const GRAPHQL_URL = 'https://api.octopus.energy/v1/graphql/';
 
@@ -34,12 +40,7 @@ interface TokenResponse {
 }
 
 interface TelemetryResponse {
-  smartMeterTelemetry?: Array<{
-    readAt?: string;
-    consumption?: string | number;
-    export?: string | number;
-    demand?: string | number;
-  }>;
+  smartMeterTelemetry?: Array<GasTelemetrySample & { export?: string | number }>;
 }
 
 interface AccountMetersResponse {
@@ -64,6 +65,7 @@ interface AccountGasMetersResponse {
         meters?: Array<{
           serialNumber?: string;
           consumptionUnits?: string;
+          smartGasMeter?: { deviceId?: string };
         }>;
       };
     }>;
@@ -89,13 +91,20 @@ export interface GasIntervalReading {
   totalConsumption: number;
   periodStart: Date;
   periodEnd: Date;
+  valuesAreKWh?: boolean;
+  cumulativeKWh?: number;
+  demandWatts?: number;
+}
+
+export interface GasMeterDetails {
+  unit: GasConsumptionUnit;
+  deviceId?: string;
 }
 
 export class OctopusApiClient {
   private token?: string;
   private tokenExpiresAt = 0;
-  private telemetryPromise?: Promise<LiveTelemetry>;
-  private telemetryFetchedAt = 0;
+  private readonly telemetryCache = new Map<string, { fetchedAt: number; promise: Promise<LiveTelemetry> }>();
   private readonly intervalCache = new Map<string, { fetchedAt: number; promise: Promise<IntervalReading> }>();
   private readonly gasIntervalCache = new Map<string, { fetchedAt: number; promise: Promise<GasIntervalReading> }>();
 
@@ -145,11 +154,11 @@ export class OctopusApiClient {
     throw new Error('No smart electricity device ID matched the configured MPAN and meter serial');
   }
 
-  public async discoverGasConsumptionUnit(
+  public async discoverGasMeterDetails(
     accountNumber: string,
     mprn: string,
     meterSerial: string,
-  ): Promise<GasConsumptionUnit> {
+  ): Promise<GasMeterDetails> {
     const query = `
       query AccountGasMeters($accountNumber: String!) {
         account(accountNumber: $accountNumber) {
@@ -159,6 +168,7 @@ export class OctopusApiClient {
               meters(includeInactive: false) {
                 serialNumber
                 consumptionUnits
+                smartGasMeter { deviceId }
               }
             }
           }
@@ -181,31 +191,87 @@ export class OctopusApiClient {
         if (meter.serialNumber?.replace(/\s/g, '').toUpperCase() !== wantedSerial) {
           continue;
         }
-        return normaliseGasConsumptionUnit(meter.consumptionUnits);
+        return {
+          unit: normaliseGasConsumptionUnit(meter.consumptionUnits),
+          deviceId: meter.smartGasMeter?.deviceId,
+        };
       }
     }
     throw new Error('No active gas meter matched the configured MPRN and meter serial');
   }
 
+  public async discoverGasConsumptionUnit(
+    accountNumber: string,
+    mprn: string,
+    meterSerial: string,
+  ): Promise<GasConsumptionUnit> {
+    return (await this.discoverGasMeterDetails(accountNumber, mprn, meterSerial)).unit;
+  }
+
   public async fetchLiveTelemetry(deviceId: string): Promise<LiveTelemetry> {
     // Import and export accessories poll together. Coalesce their requests so a
     // Home Mini only consumes one Octopus API call per polling interval.
-    if (this.telemetryPromise && Date.now() - this.telemetryFetchedAt < 5000) {
-      return this.telemetryPromise;
+    const cacheKey = deviceId.trim().toUpperCase();
+    const cached = this.telemetryCache.get(cacheKey);
+    if (cached && Date.now() - cached.fetchedAt < 5000) {
+      return cached.promise;
     }
 
-    this.telemetryFetchedAt = Date.now();
     const request = this.fetchLiveTelemetryUncached(deviceId);
-    this.telemetryPromise = request;
+    this.telemetryCache.set(cacheKey, { fetchedAt: Date.now(), promise: request });
     const clearRequest = () => {
       setTimeout(() => {
-        if (this.telemetryPromise === request) {
-          this.telemetryPromise = undefined;
+        if (this.telemetryCache.get(cacheKey)?.promise === request) {
+          this.telemetryCache.delete(cacheKey);
         }
       }, 5000);
     };
     void request.then(clearRequest, clearRequest);
     return request;
+  }
+
+  public async fetchGasLiveReading(deviceId: string): Promise<GasIntervalReading> {
+    const now = new Date();
+    const query = `
+      query SmartGasMeterTelemetry(
+        $deviceId: String!,
+        $start: DateTime!,
+        $end: DateTime!,
+        $grouping: TelemetryGrouping!
+      ) {
+        smartMeterTelemetry(deviceId: $deviceId, start: $start, end: $end, grouping: $grouping) {
+          readAt
+          consumption
+          consumptionDelta
+          demand
+        }
+      }
+    `;
+    const variables = {
+      deviceId: deviceId.trim(),
+      start: ukDayStart(now).toISOString(),
+      end: now.toISOString(),
+      grouping: 'FIVE_MINUTES',
+    };
+    let payload = await this.fetchGraphQL<TelemetryResponse>(query, variables);
+    if (payload.errors?.length && this.isAuthenticationError(payload.errors)) {
+      this.token = undefined;
+      payload = await this.fetchGraphQL<TelemetryResponse>(query, variables);
+    }
+    if (payload.errors?.length) {
+      throw new Error(payload.errors.map((error) => error.message ?? 'GraphQL error').join('; '));
+    }
+
+    const parsed = parseGasTelemetry(payload.data?.smartMeterTelemetry ?? []);
+    return {
+      intervalConsumption: parsed.intervalKWh,
+      totalConsumption: parsed.todayKWh,
+      periodStart: ukDayStart(now),
+      periodEnd: parsed.periodEnd,
+      valuesAreKWh: true,
+      cumulativeKWh: parsed.cumulativeKWh,
+      demandWatts: parsed.demandWatts,
+    };
   }
 
   public async fetchIntervalReading(mpan: string, meterSerial: string): Promise<IntervalReading> {

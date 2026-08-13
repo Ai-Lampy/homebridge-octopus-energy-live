@@ -4,6 +4,21 @@ All notable changes to Octopus Energy Live are documented here.
 
 The project follows [Semantic Versioning](https://semver.org/).
 
+## [0.5.0-beta.3] - 2026-08-13
+
+### Changed
+
+- Telemetry-enabled gas outlets now publish `ElectricalPowerMeasurement.activePower` alongside cumulative and periodic energy. This gives Apple Home the complete power-plus-energy outlet profile used by energy-monitoring accessories.
+- Give the telemetry-enabled gas profile a new Matter endpoint identity so an existing cached energy-only endpoint cannot prevent Homebridge from installing the power measurement cluster.
+
+### Fixed
+
+- Preserve an already-converted Home Mini daily gas value when restoring Matter state instead of converting it from cubic metres a second time.
+
+### Notes
+
+- Gas used so far today remains published as the standards-based `ElectricalEnergyMeasurement.periodicEnergyImported` value. Apple Home ultimately controls whether and where it displays that value.
+
 ## [0.5.0-beta.2] - 2026-08-13
 
 ### Added
@@ -165,3 +180,4 @@ The project follows [Semantic Versioning](https://semver.org/).
 [0.5.0-beta.0]: https://github.com/Ai-Lampy/homebridge-octopus-energy-live/compare/v0.4.3...v0.5.0-beta.0
 [0.5.0-beta.1]: https://github.com/Ai-Lampy/homebridge-octopus-energy-live/compare/v0.5.0-beta.0...v0.5.0-beta.1
 [0.5.0-beta.2]: https://github.com/Ai-Lampy/homebridge-octopus-energy-live/compare/v0.5.0-beta.1...v0.5.0-beta.2
+[0.5.0-beta.3]: https://github.com/Ai-Lampy/homebridge-octopus-energy-live/compare/v0.5.0-beta.2...v0.5.0-beta.3

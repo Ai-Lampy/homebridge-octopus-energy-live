@@ -25,6 +25,7 @@ export class OctopusGasMeterAccessory {
   private lastIntervalConsumption = 0;
   private lastTotalConsumption = 0;
   private lastValuesAreKWh = false;
+  private lastDemandWatts = 0;
   private matterCumulativeKWh = 0;
   private lastMatterIntervalEnd?: string;
   private timer?: NodeJS.Timeout;
@@ -68,6 +69,9 @@ export class OctopusGasMeterAccessory {
       ? accessory.context.lastGasTotalConsumption
       : 0;
     this.lastValuesAreKWh = accessory.context.lastGasValuesAreKWh === true;
+    this.lastDemandWatts = typeof accessory.context.lastGasDemandWatts === 'number'
+      ? accessory.context.lastGasDemandWatts
+      : 0;
     this.matterCumulativeKWh = typeof accessory.context.matterGasCumulativeKWh === 'number'
       ? accessory.context.matterGasCumulativeKWh
       : gasConsumptionToKWh(this.lastTotalConsumption, this.meter.unit);
@@ -111,6 +115,9 @@ export class OctopusGasMeterAccessory {
       this.lastIntervalConsumption = reading.intervalConsumption;
       this.lastTotalConsumption = reading.totalConsumption;
       this.lastValuesAreKWh = reading.valuesAreKWh === true;
+      if (typeof reading.demandWatts === 'number') {
+        this.lastDemandWatts = reading.demandWatts;
+      }
       const intervalKWh = reading.valuesAreKWh
         ? reading.intervalConsumption
         : gasConsumptionToKWh(reading.intervalConsumption, this.meter.unit);
@@ -135,6 +142,7 @@ export class OctopusGasMeterAccessory {
       this.accessory.context.lastGasTotalConsumption = reading.totalConsumption;
       this.accessory.context.lastGasValuesAreKWh = this.lastValuesAreKWh;
       this.accessory.context.lastGasCumulativeKWh = reading.cumulativeKWh;
+      this.accessory.context.lastGasDemandWatts = this.lastDemandWatts;
       this.accessory.context.lastGasReadAt = reading.periodEnd.toISOString();
       this.accessory.context.matterGasCumulativeKWh = this.matterCumulativeKWh;
       this.accessory.context.lastMatterGasIntervalEnd = this.lastMatterIntervalEnd;
@@ -213,6 +221,14 @@ export class OctopusGasMeterAccessory {
         this.lastValuesAreKWh
           ? this.lastTotalConsumption
           : gasConsumptionToKWh(this.lastTotalConsumption, this.meter.unit),
+      );
+    }
+
+    if (this.meter.useLiveTelemetry) {
+      await matter.updateAccessoryState(
+        this.matterUuid,
+        matter.clusterNames.ElectricalPowerMeasurement,
+        { activePower: Math.round(Math.max(0, this.lastDemandWatts) * 1000) },
       );
     }
 

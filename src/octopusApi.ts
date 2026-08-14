@@ -1,4 +1,4 @@
-import fetch from 'node-fetch';
+import fetch, { RequestInit, Response } from 'node-fetch';
 import { Logger } from 'homebridge';
 import {
   buildLatestConsumptionUrl,
@@ -15,6 +15,7 @@ import {
 } from './gas';
 
 const GRAPHQL_URL = 'https://api.octopus.energy/v1/graphql/';
+const OCTOPUS_REQUEST_TIMEOUT_MS = 20_000;
 
 interface ConsumptionRecord {
   consumption?: number;
@@ -103,6 +104,7 @@ export interface GasMeterDetails {
 
 export class OctopusApiClient {
   private token?: string;
+  private tokenPromise?: Promise<string>;
   private tokenExpiresAt = 0;
   private readonly telemetryCache = new Map<string, { fetchedAt: number; promise: Promise<LiveTelemetry> }>();
   private readonly intervalCache = new Map<string, { fetchedAt: number; promise: Promise<IntervalReading> }>();
@@ -403,7 +405,7 @@ export class OctopusApiClient {
 
   private async fetchGraphQL<T>(query: string, variables: Record<string, unknown>): Promise<GraphQLResponse<T>> {
     const token = await this.getToken();
-    const response = await fetch(GRAPHQL_URL, {
+    const response = await this.fetchWithTimeout(GRAPHQL_URL, {
       method: 'POST',
       headers: {
         Authorization: token,
@@ -423,7 +425,23 @@ export class OctopusApiClient {
       return this.token;
     }
 
-    const response = await fetch(GRAPHQL_URL, {
+    if (this.tokenPromise) {
+      return this.tokenPromise;
+    }
+
+    const request = this.obtainToken();
+    this.tokenPromise = request;
+    try {
+      return await request;
+    } finally {
+      if (this.tokenPromise === request) {
+        this.tokenPromise = undefined;
+      }
+    }
+  }
+
+  private async obtainToken(): Promise<string> {
+    const response = await this.fetchWithTimeout(GRAPHQL_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -456,7 +474,7 @@ export class OctopusApiClient {
 
   private async fetchRest(url: string): Promise<ConsumptionResponse> {
     this.log.debug('Requesting Octopus half-hourly consumption data.');
-    const response = await fetch(url, {
+    const response = await this.fetchWithTimeout(url, {
       headers: {
         Authorization: `Basic ${Buffer.from(`${this.apiKey}:`).toString('base64')}`,
       },
@@ -465,6 +483,21 @@ export class OctopusApiClient {
       throw new Error(`Octopus REST HTTP ${response.status}: ${await response.text()}`);
     }
     return response.json() as Promise<ConsumptionResponse>;
+  }
+
+  private async fetchWithTimeout(url: string, init: RequestInit): Promise<Response> {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), OCTOPUS_REQUEST_TIMEOUT_MS);
+    try {
+      return await fetch(url, { ...init, signal: controller.signal });
+    } catch (error) {
+      if (controller.signal.aborted) {
+        throw new Error(`Octopus API request timed out after ${OCTOPUS_REQUEST_TIMEOUT_MS / 1000} seconds`);
+      }
+      throw error;
+    } finally {
+      clearTimeout(timer);
+    }
   }
 
   private parseNumber(value: string | number | undefined, field: string): number {

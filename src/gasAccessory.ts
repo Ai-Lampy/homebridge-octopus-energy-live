@@ -81,6 +81,11 @@ export class OctopusGasMeterAccessory {
     if (this.timer) {
       return;
     }
+    this.platform.log.info(
+      `${this.meter.name} polling started; ${
+        this.meter.useLiveTelemetry ? 'Home Mini daily usage refreshes every 30 minutes' : 'checking REST interval data'
+      }.`,
+    );
     void this.refreshNow();
     this.timer = setInterval(
       () => void this.refreshNow(),

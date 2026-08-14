@@ -11,6 +11,7 @@ const platformSource = fs.readFileSync(path.join(root, 'src', 'platform.ts'), 'u
 const eveSource = fs.readFileSync(path.join(root, 'src', 'eve.ts'), 'utf8');
 const electricityAccessorySource = fs.readFileSync(path.join(root, 'src', 'accessory.ts'), 'utf8');
 const gasAccessorySource = fs.readFileSync(path.join(root, 'src', 'gasAccessory.ts'), 'utf8');
+const octopusApiSource = fs.readFileSync(path.join(root, 'src', 'octopusApi.ts'), 'utf8');
 const dependabotSource = fs.readFileSync(path.join(root, '.github', 'dependabot.yml'), 'utf8');
 const settings = require('../dist/settings');
 
@@ -111,4 +112,12 @@ test('places compatibility characteristics on custom meter services', () => {
   assert(eveSource.includes("new Service(displayName, gasMeterServiceUUID)"));
   assert(electricityAccessorySource.includes('service.UUID === this.platform.Eve.EnergyMeterServiceUUID'));
   assert(gasAccessorySource.includes('service.UUID === this.platform.Eve.GasMeterServiceUUID'));
+});
+
+test('bounds Octopus network requests and logs the polling lifecycle', () => {
+  assert(octopusApiSource.includes('OCTOPUS_REQUEST_TIMEOUT_MS = 20_000'));
+  assert(octopusApiSource.includes('new AbortController()'));
+  assert(octopusApiSource.includes('private tokenPromise?: Promise<string>'));
+  assert(platformSource.includes('Starting polling for'));
+  assert(gasAccessorySource.includes('Home Mini daily usage refreshes every 30 minutes'));
 });

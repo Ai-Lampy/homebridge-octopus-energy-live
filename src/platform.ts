@@ -94,6 +94,9 @@ export class OctopusEnergyLivePlatform implements DynamicPlatformPlugin {
       try {
         await this.discoverMeters();
         setTimeout(() => {
+          this.log.info(`Starting polling for ${this.managed.length} meter ${
+            this.managed.length === 1 ? 'accessory' : 'accessories'
+          }.`);
           this.managed.forEach((meter) => meter.startPolling());
         }, 15000);
       } catch (error) {

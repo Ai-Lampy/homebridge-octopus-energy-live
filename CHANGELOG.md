@@ -4,6 +4,17 @@ All notable changes to Octopus Energy Live are documented here.
 
 The project follows [Semantic Versioning](https://semver.org/).
 
+## [0.5.0-beta.5] - 2026-08-14
+
+### Fixed
+
+- Abort Octopus GraphQL, authentication, and REST requests after 20 seconds so a stalled network request cannot silently stop gas updates forever.
+- Coalesce concurrent Kraken token requests from electricity and gas polling instead of starting duplicate authentication requests.
+
+### Added
+
+- Log when meter polling starts and explicitly report the 30-minute Home Mini gas refresh schedule, making it possible to distinguish a timer problem from a network request problem.
+
 ## [0.5.0-beta.4] - 2026-08-13
 
 ### Fixed
@@ -196,3 +207,4 @@ The project follows [Semantic Versioning](https://semver.org/).
 [0.5.0-beta.2]: https://github.com/Ai-Lampy/homebridge-octopus-energy-live/compare/v0.5.0-beta.1...v0.5.0-beta.2
 [0.5.0-beta.3]: https://github.com/Ai-Lampy/homebridge-octopus-energy-live/compare/v0.5.0-beta.2...v0.5.0-beta.3
 [0.5.0-beta.4]: https://github.com/Ai-Lampy/homebridge-octopus-energy-live/compare/v0.5.0-beta.3...v0.5.0-beta.4
+[0.5.0-beta.5]: https://github.com/Ai-Lampy/homebridge-octopus-energy-live/compare/v0.5.0-beta.4...v0.5.0-beta.5

@@ -97,10 +97,16 @@
             "description": "Adds the standards-based Matter Periodic Energy value for gas used today. Experimental: Apple Home may choose not to display this value. Requires Experimental Matter Outlet and creates a new gas Matter endpoint when enabled.",
             "default": false
           },
+          "exposeDailyUsageAccessory": {
+            "type": "boolean",
+            "title": "Separate Gas Used Today Accessory (Beta)",
+            "description": "Creates a separate Matter outlet named Gas Used Today. The true UK-day total is published as kWh periodic energy, while an experimental display proxy maps the same number to kW so Apple Home can show it on the outlet screen (for example, 1.62 kWh appears as 1.62 kW). This is not instantaneous gas power and may affect Apple's electrical energy summaries.",
+            "default": false
+          },
           "pollMinutes": {
             "type": "number",
             "title": "Gas Refresh Interval (minutes)",
-            "description": "How often to check for a newly published Octopus half-hour gas interval. Defaults to 5 minutes. Lower values are not allowed because the source is not live.",
+            "description": "How often to check the half-hourly REST source. Defaults to 5 minutes. Experimental Home Mini gas telemetry instead refreshes today's total every 30 minutes.",
             "default": 5,
             "minimum": 5,
             "maximum": 30

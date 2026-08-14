@@ -85,6 +85,7 @@ test('labels electricity accurately and provides optional gas settings', () => {
   assert(schema.schema.properties.gas.properties.meterSerial);
   assert.equal(schema.schema.properties.gas.properties.exposeToMatter.default, false);
   assert.equal(schema.schema.properties.gas.properties.exposeDailyUsageToMatter.default, false);
+  assert.equal(schema.schema.properties.gas.properties.exposeDailyUsageAccessory.default, false);
   assert.equal(schema.schema.properties.gas.properties.pollMinutes.default, 5);
   assert.equal(schema.schema.properties.gas.properties.useLiveTelemetry.default, false);
   assert(schema.schema.properties.gas.properties.homeMiniDeviceId);
@@ -97,6 +98,9 @@ test('registers electricity as an outlet and makes the gas workaround opt-in', (
   assert(platformSource.includes('meter.exposeToMatter === true'));
   assert(platformSource.includes('matter-outlet-gas-'));
   assert(platformSource.includes('periodicEnergyImported'));
+  assert(platformSource.includes('matter-gas-daily-usage-'));
+  assert(platformSource.includes("const displayName = 'Gas Used Today'"));
+  assert(platformSource.includes('wattsToMatterMilliwatts(todayKWh * 1000)'));
   assert(platformSource.includes('electricalPowerMeasurement: { activePower: null }'));
   assert(platformSource.includes("includesLivePower ? 'telemetry-' : ''"));
   assert(platformSource.includes('matter-outlet-${side}-'));

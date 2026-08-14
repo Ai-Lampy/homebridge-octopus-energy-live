@@ -58,6 +58,7 @@ Leave the option disabled if Matter devices cannot be discovered on your network
     "unit": "auto",
     "exposeToMatter": false,
     "exposeDailyUsageToMatter": false,
+    "exposeDailyUsageAccessory": false,
     "useLiveTelemetry": false,
     "pollMinutes": 5
   },
@@ -90,6 +91,8 @@ At registration, the plugin logs the intended Matter device types and cluster ID
 Matter and Homebridge do not currently expose a native gas-meter device type. Gas is therefore not published to Matter by default. If **Experimental Matter Outlet** is enabled, the plugin represents gas as an always-on electrical outlet with `ElectricalEnergyMeasurement.cumulativeEnergyImported`. With Home Mini gas telemetry enabled, the endpoint retains `ElectricalPowerMeasurement` for Apple Home's monitored-outlet classification but marks active power unavailable because GSME readings are delayed energy intervals rather than instantaneous demand. Apple Home still presents it as a power socket rather than a native gas meter.
 
 The opt-in **Show Today's Usage in Matter (Beta)** setting additionally publishes `periodicEnergyImported`, with UK-local day-start and observation timestamps, for the current day's gas total. Home Mini gas telemetry refreshes this value every 30 minutes. This is the correct Matter representation for period energy, but Apple Home decides whether to display it. Enabling it changes the gas endpoint profile and replaces the previous experimental gas endpoint; electricity endpoints are unaffected.
+
+The separate opt-in **Gas Used Today** accessory publishes the same UK-day total on its own Matter endpoint. Its cumulative field remains the lifetime gas register and its reset-at-midnight value is published as `periodicEnergyImported`, so the endpoint never violates Matter's monotonic cumulative-energy rules. Because Apple Home currently hides periodic energy on an outlet tile, this explicitly experimental accessory also maps the numeric daily kWh total to active kW: `1.62 kWh` used today is presented as `1.62 kW`. This is a display proxy, not instantaneous gas demand, and Apple may include it in electrical power summaries.
 
 One Matter setup code commissions the whole Homebridge child bridge. Electricity, optional export, and an enabled experimental gas outlet are endpoints inside that bridge; individual endpoints do not receive separate setup codes.
 

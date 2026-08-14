@@ -13,7 +13,12 @@ import { OctopusMeterAccessory, MeterConfig, MeterSide } from './accessory';
 import { PLATFORM_NAME, PLUGIN_NAME } from './settings';
 import { EveCharacteristics, getEveCharacteristics } from './eve';
 import { OctopusApiClient } from './octopusApi';
-import { buildMatterDailyEnergyMeasurement, kWhToMatterMilliwattHours, wattsToMatterMilliwatts } from './energy';
+import {
+  buildMatterCumulativeEnergyMeasurement,
+  buildMatterDailyEnergyMeasurement,
+  kWhToMatterMilliwattHours,
+  wattsToMatterMilliwatts,
+} from './energy';
 import { GasMeterConfig, OctopusGasMeterAccessory } from './gasAccessory';
 import { GasConsumptionUnit, gasConsumptionToKWh } from './gas';
 
@@ -30,6 +35,7 @@ interface GasMeterEntry {
   unit?: 'auto' | 'kWh' | 'm3';
   exposeToMatter?: boolean;
   exposeDailyUsageToMatter?: boolean;
+  exposeDailyUsageAccessory?: boolean;
   pollMinutes?: number;
   useLiveTelemetry?: boolean;
   homeMiniDeviceId?: string;
@@ -251,11 +257,15 @@ export class OctopusEnergyLivePlatform implements DynamicPlatformPlugin {
       unit,
       pollMinutes: meter.pollMinutes,
       exposeDailyUsageToMatter: meter.exposeDailyUsageToMatter === true,
+      exposeDailyUsageAccessory: meter.exposeDailyUsageAccessory === true,
       useLiveTelemetry,
       homeMiniDeviceId: gasDeviceId,
     } as GasMeterConfig;
     const matterUuid = meter.exposeToMatter === true
       ? await this.registerMatterGasMeter(accessory.context.gas, accessory)
+      : undefined;
+    const dailyMatterUuid = meter.exposeDailyUsageAccessory === true
+      ? await this.registerMatterDailyGasUsage(accessory.context.gas, accessory)
       : undefined;
     this.managed.push(new OctopusGasMeterAccessory(
       this,
@@ -263,6 +273,7 @@ export class OctopusEnergyLivePlatform implements DynamicPlatformPlugin {
       accessory.context.gas,
       this.client,
       matterUuid,
+      dailyMatterUuid,
     ));
     this.api.updatePlatformAccessories([accessory]);
   }
@@ -280,19 +291,26 @@ export class OctopusEnergyLivePlatform implements DynamicPlatformPlugin {
       }
     }
 
-    const activeMatterUuid = this.config.gas?.exposeToMatter === true
-      && this.config.gas.mprn?.trim()
-      && this.config.gas.meterSerial?.trim()
-      ? this.gasMatterUuid(
-        this.config.gas.mprn,
-        this.config.gas.meterSerial,
-        this.config.gas.exposeDailyUsageToMatter === true,
-        this.config.gas.useLiveTelemetry === true,
-      )
-      : undefined;
+    const activeMatterUuids = new Set<string>();
+    if (this.config.gas?.mprn?.trim() && this.config.gas.meterSerial?.trim()) {
+      if (this.config.gas.exposeToMatter === true) {
+        activeMatterUuids.add(this.gasMatterUuid(
+          this.config.gas.mprn,
+          this.config.gas.meterSerial,
+          this.config.gas.exposeDailyUsageToMatter === true,
+          this.config.gas.useLiveTelemetry === true,
+        ));
+      }
+      if (this.config.gas.exposeDailyUsageAccessory === true) {
+        activeMatterUuids.add(this.dailyGasMatterUuid(
+          this.config.gas.mprn,
+          this.config.gas.meterSerial,
+        ));
+      }
+    }
     const staleMatter = this.matterAccessories.filter(
       (accessory) => accessory.context.fuel === 'gas'
-        && accessory.UUID !== activeMatterUuid,
+        && !activeMatterUuids.has(accessory.UUID),
     );
     if (staleMatter.length && this.api.matter) {
       for (const accessory of staleMatter) {
@@ -416,6 +434,91 @@ export class OctopusEnergyLivePlatform implements DynamicPlatformPlugin {
     const profile = includesDailyUsage ? 'daily-' : '';
     const telemetryProfile = includesLivePower ? 'telemetry-' : '';
     return this.api.hap.uuid.generate(`matter-outlet-gas-${profile}${telemetryProfile}${mprn}-${meterSerial}`);
+  }
+
+  private async registerMatterDailyGasUsage(
+    meter: GasMeterConfig,
+    hapAccessory: PlatformAccessory,
+  ): Promise<string | undefined> {
+    const matter = this.api.matter;
+    if (!matter || typeof this.api.isMatterEnabled !== 'function' || !this.api.isMatterEnabled()) {
+      return undefined;
+    }
+
+    const uuid = this.dailyGasMatterUuid(meter.mprn, meter.meterSerial);
+    const existing = this.matterAccessories.find((accessory) => accessory.UUID === uuid);
+    const todayKWh = hapAccessory.context.lastGasValuesAreKWh === true
+      ? (typeof hapAccessory.context.lastGasTotalConsumption === 'number'
+        ? hapAccessory.context.lastGasTotalConsumption
+        : 0)
+      : gasConsumptionToKWh(
+        typeof hapAccessory.context.lastGasTotalConsumption === 'number'
+          ? hapAccessory.context.lastGasTotalConsumption
+          : 0,
+        meter.unit,
+      );
+    const lifetimeKWh = typeof hapAccessory.context.matterGasCumulativeKWh === 'number'
+      ? hapAccessory.context.matterGasCumulativeKWh
+      : 0;
+    const displayName = 'Gas Used Today';
+    const matterAccessory: MatterAccessory = existing ?? {
+      UUID: uuid,
+      displayName,
+      deviceType: matter.deviceTypes.OnOffOutlet,
+      manufacturer: 'Octopus Energy',
+      model: 'Daily gas energy meter',
+      serialNumber: `${meter.meterSerial}-daily`,
+      context: {},
+    };
+
+    matterAccessory.displayName = displayName;
+    matterAccessory.deviceType = matter.deviceTypes.OnOffOutlet;
+    matterAccessory.manufacturer = 'Octopus Energy';
+    matterAccessory.model = 'Daily gas energy meter';
+    matterAccessory.serialNumber = `${meter.meterSerial}-daily`;
+    matterAccessory.context = {
+      fuel: 'gas',
+      profile: 'daily-usage',
+      powerDisplayProxy: true,
+      mprn: meter.mprn,
+      meterSerial: meter.meterSerial,
+    };
+    matterAccessory.clusters = {
+      onOff: { onOff: true },
+      // Apple Home prominently renders active power but currently hides
+      // periodic energy on an outlet tile. This opt-in endpoint deliberately
+      // maps the daily kWh number to kW so the displayed numeric value matches
+      // Octopus (for example, 1.62 kWh appears as 1.62 kW).
+      electricalPowerMeasurement: { activePower: wattsToMatterMilliwatts(todayKWh * 1000) },
+      electricalEnergyMeasurement: {
+        cumulativeEnergyImported: buildMatterCumulativeEnergyMeasurement(lifetimeKWh, undefined, false),
+        periodicEnergyImported: buildMatterDailyEnergyMeasurement(todayKWh),
+      },
+    };
+    matterAccessory.handlers = {
+      onOff: {
+        on: async () => {
+          await matter.updateAccessoryState(uuid, matter.clusterNames.OnOff, { onOff: true });
+        },
+        off: async () => {
+          await matter.updateAccessoryState(uuid, matter.clusterNames.OnOff, { onOff: true });
+        },
+      },
+    };
+
+    this.logMatterProfile(displayName, true, 'imported', true);
+    this.queueMatterRegistration(matterAccessory);
+    if (existing) {
+      this.log.info('Restoring cached Matter daily gas accessory', displayName);
+    } else {
+      this.matterAccessories.push(matterAccessory);
+      this.log.info('Preparing new Matter daily gas accessory', displayName);
+    }
+    return uuid;
+  }
+
+  private dailyGasMatterUuid(mprn: string, meterSerial: string): string {
+    return this.api.hap.uuid.generate(`matter-gas-daily-usage-${mprn}-${meterSerial}`);
   }
 
   private async registerMeter(side: MeterSide, meter: MeterEntry): Promise<void> {

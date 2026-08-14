@@ -4,6 +4,18 @@ All notable changes to Octopus Energy Live are documented here.
 
 The project follows [Semantic Versioning](https://semver.org/).
 
+## [0.5.0-beta.6] - 2026-08-14
+
+### Added
+
+- Added an opt-in separate Matter accessory named **Gas Used Today**. It publishes the current UK-day gas total through Matter periodic energy and updates on each successful gas refresh.
+- Added an explicit Apple Home display proxy on that accessory: the daily kWh number is mapped to active kW so `1.62 kWh` appears as `1.62 kW`. The setting warns that this is not instantaneous gas demand and may affect electrical summaries.
+
+### Compatibility
+
+- The new accessory is disabled by default and uses its own stable UUID, so existing electricity and gas endpoints are unchanged.
+- Lifetime gas energy remains monotonic; only the standards-based periodic value resets at UK midnight.
+
 ## [0.5.0-beta.5] - 2026-08-14
 
 ### Fixed
@@ -208,3 +220,4 @@ The project follows [Semantic Versioning](https://semver.org/).
 [0.5.0-beta.3]: https://github.com/Ai-Lampy/homebridge-octopus-energy-live/compare/v0.5.0-beta.2...v0.5.0-beta.3
 [0.5.0-beta.4]: https://github.com/Ai-Lampy/homebridge-octopus-energy-live/compare/v0.5.0-beta.3...v0.5.0-beta.4
 [0.5.0-beta.5]: https://github.com/Ai-Lampy/homebridge-octopus-energy-live/compare/v0.5.0-beta.4...v0.5.0-beta.5
+[0.5.0-beta.6]: https://github.com/Ai-Lampy/homebridge-octopus-energy-live/compare/v0.5.0-beta.5...v0.5.0-beta.6

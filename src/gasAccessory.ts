@@ -5,6 +5,7 @@ import {
   advanceCumulativeEnergy,
   buildMatterCumulativeEnergyMeasurement,
   buildMatterDailyEnergyMeasurement,
+  wattsToMatterMilliwatts,
 } from './energy';
 import { GasConsumptionUnit, gasConsumptionToKWh, gasPollIntervalMs } from './gas';
 
@@ -15,6 +16,7 @@ export interface GasMeterConfig {
   unit: GasConsumptionUnit;
   pollMinutes?: number;
   exposeDailyUsageToMatter?: boolean;
+  exposeDailyUsageAccessory?: boolean;
   useLiveTelemetry?: boolean;
   homeMiniDeviceId?: string;
 }
@@ -36,6 +38,7 @@ export class OctopusGasMeterAccessory {
     private readonly meter: GasMeterConfig,
     private readonly client: OctopusApiClient,
     private readonly matterUuid?: string,
+    private readonly dailyMatterUuid?: string,
   ) {
     const { Service, Characteristic } = this.platform;
     const info = this.accessory.getService(Service.AccessoryInformation);
@@ -149,7 +152,7 @@ export class OctopusGasMeterAccessory {
       this.updateCachedCharacteristics();
       const isNewInterval = !previousIntervalEnd
         || reading.periodEnd.getTime() > new Date(previousIntervalEnd).getTime();
-      if (isNewInterval || this.meter.exposeDailyUsageToMatter) {
+      if (isNewInterval || this.meter.exposeDailyUsageToMatter || this.meter.exposeDailyUsageAccessory) {
         await this.updateMatter();
       }
       this.platform.api.updatePlatformAccessories([this.accessory]);
@@ -160,6 +163,9 @@ export class OctopusGasMeterAccessory {
           this.matterCumulativeKWh.toFixed(3)
         } kWh tracked cumulatively`,
       );
+      if (this.dailyMatterUuid) {
+        this.platform.log.info(`Gas Used Today published to Matter: ${todayKWh.toFixed(3)} kWh.`);
+      }
     } catch (error) {
       this.platform.log.warn(
         `Refresh failed for ${this.meter.name}: ${error instanceof Error ? error.message : String(error)}`,
@@ -205,7 +211,7 @@ export class OctopusGasMeterAccessory {
 
   private async updateMatter(): Promise<void> {
     const matter = this.platform.api.matter;
-    if (!matter || !this.matterUuid) {
+    if (!matter || (!this.matterUuid && !this.dailyMatterUuid)) {
       return;
     }
 
@@ -224,7 +230,7 @@ export class OctopusGasMeterAccessory {
       );
     }
 
-    if (this.meter.useLiveTelemetry) {
+    if (this.matterUuid && this.meter.useLiveTelemetry) {
       await matter.updateAccessoryState(
         this.matterUuid,
         matter.clusterNames.ElectricalPowerMeasurement,
@@ -232,10 +238,37 @@ export class OctopusGasMeterAccessory {
       );
     }
 
-    await matter.updateAccessoryState(
-      this.matterUuid,
-      matter.clusterNames.ElectricalEnergyMeasurement,
-      energyState,
-    );
+    if (this.matterUuid) {
+      await matter.updateAccessoryState(
+        this.matterUuid,
+        matter.clusterNames.ElectricalEnergyMeasurement,
+        energyState,
+      );
+    }
+
+    if (this.dailyMatterUuid) {
+      const todayKWh = this.lastValuesAreKWh
+        ? this.lastTotalConsumption
+        : gasConsumptionToKWh(this.lastTotalConsumption, this.meter.unit);
+      await matter.updateAccessoryState(
+        this.dailyMatterUuid,
+        matter.clusterNames.ElectricalPowerMeasurement,
+        { activePower: wattsToMatterMilliwatts(todayKWh * 1000) },
+      );
+      await matter.updateAccessoryState(
+        this.dailyMatterUuid,
+        matter.clusterNames.ElectricalEnergyMeasurement,
+        {
+          cumulativeEnergyImported: buildMatterCumulativeEnergyMeasurement(
+            this.matterCumulativeKWh,
+            undefined,
+            false,
+          ),
+          periodicEnergyImported: buildMatterDailyEnergyMeasurement(
+            todayKWh,
+          ),
+        },
+      );
+    }
   }
 }

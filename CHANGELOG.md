@@ -4,6 +4,49 @@ All notable changes to Octopus Energy Live are documented here.
 
 The project follows [Semantic Versioning](https://semver.org/).
 
+## [0.5.0] - 2026-08-24
+
+### Added
+
+- Added optional gas-meter support using an MPRN and meter serial, with automatic SMETS1 kWh or SMETS2 cubic-metre detection and conversion to kWh.
+- Added opt-in Home Mini GSME telemetry for gas, including automatic device discovery, REST fallback, and a current UK-day consumption total.
+- Added opt-in experimental Matter gas endpoints, standards-based periodic energy for today's gas usage, and a separate **Gas Used Today** display accessory.
+- Added configurable REST gas polling, bounded Octopus API requests, shared authentication and telemetry requests, and expanded Node.js 22, 24, and 26 validation.
+
+### Changed
+
+- Renamed the settings section to **Electricity Meter** while retaining the existing `import` configuration key and accessory identities.
+- Updated the development baseline to Homebridge 2.3.1 and `@types/node` 26.2.0; Homebridge remains a development-only dependency.
+- Updated the continuous-integration and publishing workflows to the current `actions/checkout` and `actions/setup-node` v7 releases.
+- Electricity import, optional export, and enabled gas endpoints use bridged Matter outlet profiles with electrical measurement clusters.
+- GitHub publishing now uses the stable `latest` npm tag for this release and creates complete GitHub release notes from this changelog section.
+
+### Fixed
+
+- Preserved valid Matter energy timestamps and monotonic cumulative gas energy across delayed intervals and midnight resets.
+- Prevented duplicate custom services, stale electricity/export accessories after configuration changes, and overlapping polling requests.
+- Isolated Matter registration and state-update failures so HAP accessories and Octopus polling continue operating.
+- Correctly includes usage reported in the first Home Mini gas telemetry sample of a UK day, including across daylight-saving changes.
+- Cancels delayed polling startup during shutdown and bounds invalid or negative energy values before publishing them.
+
+### Compatibility
+
+- Existing `0.4.x` and `0.5.0-beta.x` configurations, HAP accessory UUIDs, current Matter profile identities, and cached cumulative readings remain compatible. Enabling or disabling an experimental gas profile intentionally replaces only that gas Matter endpoint.
+- All gas-to-Matter options remain disabled by default because Matter does not define a native gas-meter device type. Existing users only receive new gas endpoints when they explicitly enable those settings.
+- The **Gas Used Today** active-power display remains an explicitly labelled opt-in proxy; it is not instantaneous gas demand and Apple Home may include it in electrical summaries.
+
+## [0.5.0-beta.7] - 2026-08-14
+
+### Fixed
+
+- Include usage reported by the first Home Mini gas telemetry sample of the UK day when calculating **Gas Used Today**. This fixes a `0.000 kWh` total when the first returned sample already contains the day's first gas interval.
+- Use UK local midnight consistently for the REST gas-reading period and its Matter daily-energy timestamps, including during British Summer Time.
+
+### Compatibility
+
+- Existing configuration, cached accessories, Matter endpoint identities, and cumulative gas tracking remain unchanged.
+- The latest gas interval may still be zero when no gas was used in the most recent five-minute sample; the separate daily total now retains earlier usage correctly.
+
 ## [0.5.0-beta.6] - 2026-08-14
 
 ### Added
@@ -214,6 +257,7 @@ The project follows [Semantic Versioning](https://semver.org/).
 [0.4.1]: https://github.com/Ai-Lampy/homebridge-octopus-energy-live/compare/v0.4.0...v0.4.1
 [0.4.2]: https://github.com/Ai-Lampy/homebridge-octopus-energy-live/compare/v0.4.1...v0.4.2
 [0.4.3]: https://github.com/Ai-Lampy/homebridge-octopus-energy-live/compare/v0.4.2...v0.4.3
+[0.5.0]: https://github.com/Ai-Lampy/homebridge-octopus-energy-live/compare/v0.4.3...v0.5.0
 [0.5.0-beta.0]: https://github.com/Ai-Lampy/homebridge-octopus-energy-live/compare/v0.4.3...v0.5.0-beta.0
 [0.5.0-beta.1]: https://github.com/Ai-Lampy/homebridge-octopus-energy-live/compare/v0.5.0-beta.0...v0.5.0-beta.1
 [0.5.0-beta.2]: https://github.com/Ai-Lampy/homebridge-octopus-energy-live/compare/v0.5.0-beta.1...v0.5.0-beta.2
@@ -221,3 +265,4 @@ The project follows [Semantic Versioning](https://semver.org/).
 [0.5.0-beta.4]: https://github.com/Ai-Lampy/homebridge-octopus-energy-live/compare/v0.5.0-beta.3...v0.5.0-beta.4
 [0.5.0-beta.5]: https://github.com/Ai-Lampy/homebridge-octopus-energy-live/compare/v0.5.0-beta.4...v0.5.0-beta.5
 [0.5.0-beta.6]: https://github.com/Ai-Lampy/homebridge-octopus-energy-live/compare/v0.5.0-beta.5...v0.5.0-beta.6
+[0.5.0-beta.7]: https://github.com/Ai-Lampy/homebridge-octopus-energy-live/compare/v0.5.0-beta.6...v0.5.0-beta.7

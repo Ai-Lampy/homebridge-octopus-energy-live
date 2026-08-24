@@ -6,6 +6,7 @@ const test = require('node:test');
 
 const root = path.resolve(__dirname, '..');
 const packageJson = JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 'utf8'));
+const packageLock = JSON.parse(fs.readFileSync(path.join(root, 'package-lock.json'), 'utf8'));
 const schema = JSON.parse(fs.readFileSync(path.join(root, 'config.schema.json'), 'utf8'));
 const platformSource = fs.readFileSync(path.join(root, 'src', 'platform.ts'), 'utf8');
 const eveSource = fs.readFileSync(path.join(root, 'src', 'eve.ts'), 'utf8');
@@ -32,11 +33,21 @@ test('declares the transports and supported Node.js versions', () => {
 });
 
 test('declares Homebridge only as a development dependency', () => {
-  assert.equal(packageJson.devDependencies.homebridge, '^2.3.0');
+  assert.equal(packageJson.devDependencies.homebridge, '^2.3.1');
   assert.equal(packageJson.dependencies?.homebridge, undefined);
   assert.equal(packageJson.optionalDependencies?.homebridge, undefined);
   assert.equal(packageJson.peerDependencies?.homebridge, undefined);
   assert(!packageJson.bundledDependencies?.includes('homebridge'));
+});
+
+test('keeps stable release and lockfile metadata aligned', () => {
+  assert.equal(packageJson.version, '0.5.0');
+  assert.equal(packageLock.version, packageJson.version);
+  assert.equal(packageLock.packages[''].version, packageJson.version);
+  assert.equal(packageLock.packages[''].devDependencies.homebridge, packageJson.devDependencies.homebridge);
+  assert.equal(packageLock.packages[''].devDependencies['@types/node'], packageJson.devDependencies['@types/node']);
+  assert.equal(packageLock.packages['node_modules/homebridge'].version, '2.3.1');
+  assert.equal(packageLock.packages['node_modules/@types/node'].version, '26.2.0');
 });
 
 test('builds GitHub release notes from the current changelog section', () => {
@@ -48,6 +59,7 @@ test('builds GitHub release notes from the current changelog section', () => {
   assert(notes.includes(`## [${packageJson.version}]`));
   assert.match(notes, /### (Added|Changed|Fixed|Documentation|Notes)/);
   assert(!notes.includes('## [0.4.1]'));
+  assert(!notes.includes('## [0.5.0-beta.7]'));
 });
 
 test('blocks incompatible automated toolchain major upgrades', () => {
@@ -124,4 +136,9 @@ test('bounds Octopus network requests and logs the polling lifecycle', () => {
   assert(octopusApiSource.includes('private tokenPromise?: Promise<string>'));
   assert(platformSource.includes('Starting polling for'));
   assert(gasAccessorySource.includes('Home Mini daily usage refreshes every 30 minutes'));
+  assert(electricityAccessorySource.includes('Skipping overlapping refresh'));
+  assert(gasAccessorySource.includes('Skipping overlapping refresh'));
+  assert(platformSource.includes('Matter accessory registration failed; HAP accessories and polling will continue'));
+  assert(electricityAccessorySource.includes('Matter update failed; HAP data will continue'));
+  assert(gasAccessorySource.includes('Matter update failed; HAP data will continue'));
 });

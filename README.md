@@ -15,13 +15,13 @@ Homebridge platform plugin that publishes live Octopus Energy electricity readin
 
 ## Requirements
 
-- Node.js 22, 24, or 26
+- Node.js 22, 24, or 26 (matching Homebridge 2.3.x)
 - Homebridge 2.2.1 or newer for Apple Home energy data
 - Matter enabled for the main bridge or this plugin's child bridge
 - iOS 27 and a Matter-capable Apple home hub
 - Octopus API key, electricity MPAN, and electricity meter serial
 - Optional gas MPRN and gas meter serial
-- Octopus Home Mini plus the electricity meter's EUI64 device ID for live readings
+- A compatible Octopus Home Mini for live readings; the plugin normally discovers the meter EUI64 automatically
 
 Homebridge 1.x remains compatible with the classic Outlet and Eve characteristics, but cannot publish the Matter electrical measurement clusters used by Apple Home.
 
@@ -74,7 +74,7 @@ Electricity import is required; gas and electricity export are optional. The set
 
 Gas uses an **MPRN** (Meter Point Reference Number), not an MPAN. Leave `unit` set to `auto` when an account number is configured. If Octopus cannot return the meter's `consumptionUnits`, choose `m3` for a SMETS2 meter or `kWh` for a SMETS1 meter. Enabling `useLiveTelemetry` attempts to discover the GSME EUI64 automatically. The optional nested `homeMiniDeviceId` setting is only an override for that gas device ID.
 
-When experimental gas telemetry is enabled, electricity live polling is limited to 60 seconds and gas remains on its configured 5–30 minute check interval. This keeps the combined calls below Octopus's documented 125-request-per-user hourly limit.
+When experimental gas telemetry is enabled, electricity live polling is limited to 60 seconds and gas telemetry refreshes every 30 minutes. The configurable 5–30 minute gas interval applies to the REST source. This keeps combined telemetry calls below Octopus's documented 125-request-per-user hourly limit.
 
 Treat the API key as a password. The plugin exchanges it for a short-lived Kraken token in memory and never logs either credential.
 
@@ -118,7 +118,7 @@ npm test
 npm pack --dry-run
 ```
 
-`npm test` compiles TypeScript into `dist/` before running the unit tests. The GitHub Actions workflow runs this sequence on Node.js 22, 24, and 26 for every pull request and every push to `main`. Publishing to npm is intentionally not automated; a repository maintainer should review and publish a release explicitly.
+`npm test` compiles TypeScript into `dist/` before running the unit tests. The GitHub Actions workflow runs this sequence on Node.js 22, 24, and 26 for every pull request and every push to `main`. Publishing is only performed when a repository maintainer explicitly runs the manual workflow.
 
 Running the manual **Publish to npm** workflow publishes the package version and then creates a matching `vX.Y.Z` GitHub Release. The release body is taken from that version's section in `CHANGELOG.md`, followed by a direct link to the published npm package. Re-running the workflow is safe when npm publication succeeded but release creation did not; it also repairs the notes on an existing matching GitHub Release.
 

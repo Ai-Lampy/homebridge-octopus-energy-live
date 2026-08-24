@@ -1,7 +1,7 @@
 {
   "name": "homebridge-octopus-energy-live",
   "displayName": "Octopus Energy Live",
-  "version": "0.5.0-beta.6",
+  "version": "0.5.0",
   "description": "Display Octopus Energy electricity and gas smart meter data through Homebridge",
   "author": {
     "name": "lxmitch",
@@ -72,8 +72,8 @@
     "node-fetch": "^2.6.11"
   },
   "devDependencies": {
-    "homebridge": "^2.3.0",
-    "@types/node": "^26.1.2",
+    "homebridge": "^2.3.1",
+    "@types/node": "^26.2.0",
     "@types/node-fetch": "^2.6.11",
     "@typescript-eslint/eslint-plugin": "^7.8.0",
     "@typescript-eslint/parser": "^7.8.0",

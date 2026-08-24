@@ -56,6 +56,15 @@ test('converts API units to Matter integer units', () => {
   assert.equal(kWhToMatterMilliwattHours(12.345678), 12345678);
   assert.equal(wattsToMatterMilliwatts(-1), 0);
   assert.equal(kWhToMatterMilliwattHours(-1), 0);
+  assert.equal(wattsToMatterMilliwatts(Number.NaN), 0);
+  assert.equal(kWhToMatterMilliwattHours(Number.POSITIVE_INFINITY), 0);
+});
+
+test('ignores invalid interval values when tracking cumulative energy', () => {
+  assert.deepEqual(
+    advanceCumulativeEnergy(1.25, '2026-08-03T21:30:00.000Z', Number.NaN, new Date('2026-08-03T22:00:00Z'), 0),
+    { totalKWh: 1.25, lastIntervalEnd: '2026-08-03T22:00:00.000Z' },
+  );
 });
 
 test('omits timestamps from cumulative REST fallback energy', () => {
@@ -81,5 +90,16 @@ test('builds a valid UTC daily Matter periodic energy period', () => {
       startTimestamp: 1786575600,
       endTimestamp: 1786609459,
     },
+  );
+});
+
+test('builds daily Matter periods across UK daylight-saving changes', () => {
+  assert.deepEqual(
+    buildMatterDailyEnergyMeasurement(1, new Date('2026-03-29T12:00:00Z')),
+    { energy: 1000000, startTimestamp: 1774742400, endTimestamp: 1774785600 },
+  );
+  assert.deepEqual(
+    buildMatterDailyEnergyMeasurement(1, new Date('2026-10-25T12:00:00Z')),
+    { energy: 1000000, startTimestamp: 1792882800, endTimestamp: 1792929600 },
   );
 });

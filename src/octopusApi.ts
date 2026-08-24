@@ -5,8 +5,8 @@ import {
   buildLatestGasConsumptionUrl,
   buildTodayConsumptionUrl,
   buildTodayGasConsumptionUrl,
+  ukDayStart,
 } from './octopusUrls';
-import { ukDayStart } from './octopusUrls';
 import {
   GasConsumptionUnit,
   GasTelemetrySample,
@@ -343,7 +343,7 @@ export class OctopusApiClient {
 
   private async fetchGasIntervalReadingUncached(mprn: string, meterSerial: string): Promise<GasIntervalReading> {
     const now = new Date();
-    const totalStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), 0, 0, 0));
+    const totalStart = ukDayStart(now);
     const [latestResponse, todayResponse] = await Promise.all([
       this.fetchRest(buildLatestGasConsumptionUrl(mprn, meterSerial)),
       this.fetchRest(buildTodayGasConsumptionUrl(mprn, meterSerial, { now })),

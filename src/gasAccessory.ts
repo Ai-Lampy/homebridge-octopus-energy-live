@@ -31,6 +31,8 @@ export class OctopusGasMeterAccessory {
   private lastMatterIntervalEnd?: string;
   private timer?: NodeJS.Timeout;
   private liveTelemetryFailed = false;
+  private refreshInProgress = false;
+  private matterUpdateFailed = false;
 
   constructor(
     private readonly platform: OctopusEnergyLivePlatform,
@@ -116,6 +118,11 @@ export class OctopusGasMeterAccessory {
   }
 
   private async refreshNow(): Promise<void> {
+    if (this.refreshInProgress) {
+      this.platform.log.debug(`Skipping overlapping refresh for ${this.meter.name}.`);
+      return;
+    }
+    this.refreshInProgress = true;
     try {
       const reading = await this.fetchReading();
       const previousIntervalEnd = this.lastMatterIntervalEnd;
@@ -153,7 +160,21 @@ export class OctopusGasMeterAccessory {
       const isNewInterval = !previousIntervalEnd
         || reading.periodEnd.getTime() > new Date(previousIntervalEnd).getTime();
       if (isNewInterval || this.meter.exposeDailyUsageToMatter || this.meter.exposeDailyUsageAccessory) {
-        await this.updateMatter();
+        try {
+          await this.updateMatter();
+          if (this.matterUpdateFailed) {
+            this.platform.log.info(`${this.meter.name} Matter updates recovered.`);
+          }
+          this.matterUpdateFailed = false;
+        } catch (error) {
+          const message = error instanceof Error ? error.message : String(error);
+          if (!this.matterUpdateFailed) {
+            this.platform.log.warn(`${this.meter.name} Matter update failed; HAP data will continue: ${message}`);
+          } else {
+            this.platform.log.debug(`${this.meter.name} Matter update still unavailable: ${message}`);
+          }
+          this.matterUpdateFailed = true;
+        }
       }
       this.platform.api.updatePlatformAccessories([this.accessory]);
       this.platform.log.info(
@@ -170,6 +191,8 @@ export class OctopusGasMeterAccessory {
       this.platform.log.warn(
         `Refresh failed for ${this.meter.name}: ${error instanceof Error ? error.message : String(error)}`,
       );
+    } finally {
+      this.refreshInProgress = false;
     }
   }
 

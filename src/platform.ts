@@ -69,6 +69,7 @@ export class OctopusEnergyLivePlatform implements DynamicPlatformPlugin {
   private pollSeconds: number;
   private readonly client: OctopusApiClient;
   private homeMiniDeviceId?: string;
+  private pollingStartTimer?: NodeJS.Timeout;
 
   constructor(
     public readonly log: Logger,
@@ -99,7 +100,8 @@ export class OctopusEnergyLivePlatform implements DynamicPlatformPlugin {
       this.log.debug('Finished launching, starting discovery');
       try {
         await this.discoverMeters();
-        setTimeout(() => {
+        this.pollingStartTimer = setTimeout(() => {
+          this.pollingStartTimer = undefined;
           this.log.info(`Starting polling for ${this.managed.length} meter ${
             this.managed.length === 1 ? 'accessory' : 'accessories'
           }.`);
@@ -111,6 +113,10 @@ export class OctopusEnergyLivePlatform implements DynamicPlatformPlugin {
     });
 
     this.api.on(APIEvent.SHUTDOWN, () => {
+      if (this.pollingStartTimer) {
+        clearTimeout(this.pollingStartTimer);
+        this.pollingStartTimer = undefined;
+      }
       this.managed.forEach((meter) => meter.stopPolling());
     });
   }
@@ -160,7 +166,9 @@ export class OctopusEnergyLivePlatform implements DynamicPlatformPlugin {
       this.log.info('Using a 60-second electricity polling interval to stay within the Octopus telemetry rate limit.');
     }
 
+    const activeElectricityUuids = new Set<string>();
     await this.registerMeter('import', this.config.import);
+    activeElectricityUuids.add(this.electricityAccessoryUuid('import', this.config.import));
 
     let gasUuid: string | undefined;
     if (this.config.gas?.mprn?.trim() || this.config.gas?.meterSerial?.trim()) {
@@ -176,12 +184,22 @@ export class OctopusEnergyLivePlatform implements DynamicPlatformPlugin {
     if (this.config.export) {
       if (this.config.export.mpan && this.config.export.meterSerial) {
         await this.registerMeter('export', this.config.export);
+        activeElectricityUuids.add(this.electricityAccessoryUuid('export', this.config.export));
       } else {
         this.log.warn('Export configuration incomplete; skipping export accessory.');
       }
     }
+    await this.removeStaleElectricityAccessories(activeElectricityUuids);
 
-    await this.flushMatterAccessoryChanges();
+    try {
+      await this.flushMatterAccessoryChanges();
+    } catch (error) {
+      this.log.warn(
+        `Matter accessory registration failed; HAP accessories and polling will continue: ${
+          error instanceof Error ? error.message : String(error)
+        }`,
+      );
+    }
   }
 
   private async registerGasMeter(meter: GasMeterEntry, uuid: string): Promise<void> {
@@ -523,7 +541,7 @@ export class OctopusEnergyLivePlatform implements DynamicPlatformPlugin {
 
   private async registerMeter(side: MeterSide, meter: MeterEntry): Promise<void> {
     const name = meter.name || (side === 'import' ? 'Electricity Meter' : 'Octopus Export');
-    const uuid = this.api.hap.uuid.generate(`${side}-${meter.mpan}-${meter.meterSerial}`);
+    const uuid = this.electricityAccessoryUuid(side, meter);
 
     const existing = this.accessories.find((accessory) => accessory.UUID === uuid);
 
@@ -536,6 +554,7 @@ export class OctopusEnergyLivePlatform implements DynamicPlatformPlugin {
       accessory = new this.api.platformAccessory(name, uuid);
       this.log.info('Registering new accessory', name);
       this.api.registerPlatformAccessories(PLUGIN_NAME, PLATFORM_NAME, [accessory]);
+      this.accessories.push(accessory);
     }
 
     accessory.context.meter = {
@@ -570,7 +589,7 @@ export class OctopusEnergyLivePlatform implements DynamicPlatformPlugin {
       return undefined;
     }
 
-    const uuid = this.api.hap.uuid.generate(`matter-outlet-${side}-${meter.mpan}-${meter.meterSerial}`);
+    const uuid = this.electricityMatterUuid(side, meter);
     const existing = this.matterAccessories.find((accessory) => accessory.UUID === uuid);
     const lastWatts = typeof hapAccessory.context.lastWatts === 'number' ? hapAccessory.context.lastWatts : 0;
     const totalKWh = typeof hapAccessory.context.totalKWh === 'number' ? hapAccessory.context.totalKWh : 0;
@@ -633,6 +652,51 @@ export class OctopusEnergyLivePlatform implements DynamicPlatformPlugin {
     return uuid;
   }
 
+  private electricityAccessoryUuid(side: MeterSide, meter: MeterEntry): string {
+    return this.api.hap.uuid.generate(`${side}-${meter.mpan}-${meter.meterSerial}`);
+  }
+
+  private electricityMatterUuid(side: MeterSide, meter: MeterEntry): string {
+    return this.api.hap.uuid.generate(`matter-outlet-${side}-${meter.mpan}-${meter.meterSerial}`);
+  }
+
+  private async removeStaleElectricityAccessories(activeHapUuids: Set<string>): Promise<void> {
+    const staleHap = this.accessories.filter(
+      (accessory) => accessory.context.meter && !activeHapUuids.has(accessory.UUID),
+    );
+    if (staleHap.length) {
+      this.api.unregisterPlatformAccessories(PLUGIN_NAME, PLATFORM_NAME, staleHap);
+      for (const accessory of staleHap) {
+        const index = this.accessories.indexOf(accessory);
+        if (index >= 0) {
+          this.accessories.splice(index, 1);
+        }
+        this.log.info('Removed stale electricity accessory', accessory.displayName);
+      }
+    }
+
+    if (!this.api.matter) {
+      return;
+    }
+    const activeMatterUuids = new Set<string>();
+    activeMatterUuids.add(this.electricityMatterUuid('import', this.config.import));
+    if (this.config.export?.mpan?.trim() && this.config.export.meterSerial?.trim()) {
+      activeMatterUuids.add(this.electricityMatterUuid('export', this.config.export));
+    }
+    const staleMatter = this.matterAccessories.filter(
+      (accessory) => (accessory.context.side === 'import' || accessory.context.side === 'export')
+        && !activeMatterUuids.has(accessory.UUID),
+    );
+    for (const accessory of staleMatter) {
+      this.queueMatterUnregistration(accessory);
+      const index = this.matterAccessories.indexOf(accessory);
+      if (index >= 0) {
+        this.matterAccessories.splice(index, 1);
+      }
+      this.log.info('Removed stale Matter electricity outlet', accessory.displayName);
+    }
+  }
+
   private logMatterProfile(
     displayName: string,
     includesLivePower: boolean,
@@ -669,33 +733,37 @@ export class OctopusEnergyLivePlatform implements DynamicPlatformPlugin {
   private async flushMatterAccessoryChanges(): Promise<void> {
     const matter = this.api.matter;
     if (!matter || typeof this.api.isMatterEnabled !== 'function' || !this.api.isMatterEnabled()) {
+      this.pendingMatterUnregistrations.length = 0;
+      this.pendingMatterRegistrations.length = 0;
       return;
     }
 
-    if (this.pendingMatterUnregistrations.length) {
-      const accessories = [...this.pendingMatterUnregistrations];
-      await matter.unregisterPlatformAccessories(
-        PLUGIN_NAME,
-        PLATFORM_NAME,
-        accessories,
-      );
-      // Homebridge's bridged Matter API dispatches structural operations
-      // asynchronously. Give cache-only removals time to finish before the
-      // single registration batch is dispatched.
-      await new Promise((resolve) => setTimeout(resolve, 250));
-    }
+    try {
+      if (this.pendingMatterUnregistrations.length) {
+        const accessories = [...this.pendingMatterUnregistrations];
+        await matter.unregisterPlatformAccessories(
+          PLUGIN_NAME,
+          PLATFORM_NAME,
+          accessories,
+        );
+        // Homebridge's bridged Matter API dispatches structural operations
+        // asynchronously. Give cache-only removals time to finish before the
+        // single registration batch is dispatched.
+        await new Promise((resolve) => setTimeout(resolve, 250));
+      }
 
-    if (this.pendingMatterRegistrations.length) {
-      const accessories = [...this.pendingMatterRegistrations];
-      await matter.registerPlatformAccessories(
-        PLUGIN_NAME,
-        PLATFORM_NAME,
-        accessories,
-      );
-      this.log.info(`Submitted ${accessories.length} Matter accessory endpoint(s) for registration.`);
+      if (this.pendingMatterRegistrations.length) {
+        const accessories = [...this.pendingMatterRegistrations];
+        await matter.registerPlatformAccessories(
+          PLUGIN_NAME,
+          PLATFORM_NAME,
+          accessories,
+        );
+        this.log.info(`Submitted ${accessories.length} Matter accessory endpoint(s) for registration.`);
+      }
+    } finally {
+      this.pendingMatterUnregistrations.length = 0;
+      this.pendingMatterRegistrations.length = 0;
     }
-
-    this.pendingMatterUnregistrations.length = 0;
-    this.pendingMatterRegistrations.length = 0;
   }
 }

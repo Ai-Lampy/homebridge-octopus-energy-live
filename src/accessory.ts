@@ -25,6 +25,8 @@ export class OctopusMeterAccessory {
   private lastWatts = 0;
   private lastTotalKWh = 0;
   private timer?: NodeJS.Timeout;
+  private refreshInProgress = false;
+  private matterUpdateFailed = false;
 
   constructor(
     private readonly platform: OctopusEnergyLivePlatform,
@@ -94,6 +96,11 @@ export class OctopusMeterAccessory {
   }
 
   private async refreshNow(): Promise<void> {
+    if (this.refreshInProgress) {
+      this.platform.log.debug(`Skipping overlapping refresh for ${this.meter.name}.`);
+      return;
+    }
+    this.refreshInProgress = true;
     try {
       const reading = await this.fetchReading();
       this.lastWatts = reading.watts;
@@ -101,14 +108,29 @@ export class OctopusMeterAccessory {
       this.accessory.context.lastWatts = reading.watts;
       this.accessory.context.totalKWh = reading.totalKWh;
       this.updateCachedCharacteristics();
-      await this.updateMatter(reading);
-
+      try {
+        await this.updateMatter(reading);
+        if (this.matterUpdateFailed) {
+          this.platform.log.info(`${this.meter.name} Matter updates recovered.`);
+        }
+        this.matterUpdateFailed = false;
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        if (!this.matterUpdateFailed) {
+          this.platform.log.warn(`${this.meter.name} Matter update failed; HAP data will continue: ${message}`);
+        } else {
+          this.platform.log.debug(`${this.meter.name} Matter update still unavailable: ${message}`);
+        }
+        this.matterUpdateFailed = true;
+      }
       const source = this.homeMiniDeviceId ? 'Home Mini live telemetry' : 'half-hourly REST data';
       this.platform.log.debug(
         `${this.meter.name} updated from ${source}: ${reading.watts.toFixed(2)} W, ${reading.totalKWh.toFixed(3)} kWh`,
       );
     } catch (error) {
       this.platform.log.warn(`Refresh failed for ${this.meter.name}: ${error instanceof Error ? error.message : String(error)}`);
+    } finally {
+      this.refreshInProgress = false;
     }
   }
 

@@ -35,7 +35,7 @@ export function gasConsumptionToKWh(
   unit: GasConsumptionUnit,
   calorificValue = DEFAULT_GAS_CALORIFIC_VALUE,
 ): number {
-  const safeConsumption = Math.max(0, consumption);
+  const safeConsumption = Number.isFinite(consumption) ? Math.max(0, consumption) : 0;
   if (unit === 'kWh') {
     return safeConsumption;
   }
@@ -74,12 +74,20 @@ export function parseGasTelemetry(samples: GasTelemetrySample[]): ParsedGasTelem
   const latest = readings[readings.length - 1];
   const previous = readings[readings.length - 2];
   const reportedDelta = finiteNumber(latest.sample.consumptionDelta);
-  const intervalWh = reportedDelta ?? Math.max(0, latest.consumptionWh! - previous.consumptionWh!);
+  const intervalWh = Math.max(
+    0,
+    reportedDelta ?? latest.consumptionWh! - previous.consumptionWh!,
+  );
+  // The first sample returned for a UK day can itself be the first usage event
+  // rather than a midnight baseline. Include its delta so that usage from that
+  // sample is not lost when the cumulative register remains unchanged later.
+  const firstReportedDelta = Math.max(0, finiteNumber(first.sample.consumptionDelta) ?? 0);
+  const todayWh = Math.max(0, latest.consumptionWh! - first.consumptionWh!) + firstReportedDelta;
   const reportedDemandWatts = Math.max(0, finiteNumber(latest.sample.demand) ?? 0);
 
   return {
     intervalKWh: roundKWh(intervalWh / 1000),
-    todayKWh: roundKWh(Math.max(0, latest.consumptionWh! - first.consumptionWh!) / 1000),
+    todayKWh: roundKWh(todayWh / 1000),
     cumulativeKWh: roundKWh(Math.max(0, latest.consumptionWh!) / 1000),
     demandWatts: reportedDemandWatts,
     periodEnd: latest.readAt!,

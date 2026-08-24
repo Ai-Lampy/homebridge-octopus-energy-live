@@ -5,11 +5,11 @@ export function livePowerForSide(side: MeterSide, signedDemandWatts: number): nu
 }
 
 export function wattsToMatterMilliwatts(watts: number): number {
-  return Math.round(Math.max(0, watts) * 1000);
+  return Math.round((Number.isFinite(watts) ? Math.max(0, watts) : 0) * 1000);
 }
 
 export function kWhToMatterMilliwattHours(kWh: number): number {
-  return Math.round(Math.max(0, kWh) * 1_000_000);
+  return Math.round((Number.isFinite(kWh) ? Math.max(0, kWh) : 0) * 1_000_000);
 }
 
 export interface MatterCumulativeEnergyMeasurement {
@@ -32,10 +32,12 @@ export function advanceCumulativeEnergy(
 ): TrackedCumulativeEnergy {
   const currentEnd = intervalEnd.toISOString();
   const previousEndMs = previousIntervalEnd ? new Date(previousIntervalEnd).getTime() : Number.NaN;
+  const safeIntervalKWh = Number.isFinite(intervalKWh) ? Math.max(0, intervalKWh) : 0;
+  const safeInitialTotalKWh = Number.isFinite(initialTotalKWh) ? Math.max(0, initialTotalKWh) : 0;
 
   if (!Number.isFinite(previousTotalKWh) || previousTotalKWh <= 0 || !previousIntervalEnd) {
     return {
-      totalKWh: Math.max(0, initialTotalKWh, intervalKWh),
+      totalKWh: Math.max(safeInitialTotalKWh, safeIntervalKWh),
       lastIntervalEnd: currentEnd,
     };
   }
@@ -45,7 +47,7 @@ export function advanceCumulativeEnergy(
   }
 
   return {
-    totalKWh: Math.round((previousTotalKWh + Math.max(0, intervalKWh)) * 1_000_000) / 1_000_000,
+    totalKWh: Math.round((previousTotalKWh + safeIntervalKWh) * 1_000_000) / 1_000_000,
     lastIntervalEnd: currentEnd,
   };
 }

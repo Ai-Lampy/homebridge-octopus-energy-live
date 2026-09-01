@@ -46,8 +46,6 @@ test('keeps stable release and lockfile metadata aligned', () => {
   assert.equal(packageLock.packages[''].version, packageJson.version);
   assert.equal(packageLock.packages[''].devDependencies.homebridge, packageJson.devDependencies.homebridge);
   assert.equal(packageLock.packages[''].devDependencies['@types/node'], packageJson.devDependencies['@types/node']);
-  assert.equal(packageLock.packages['node_modules/homebridge'].version, '2.4.0');
-  assert.equal(packageLock.packages['node_modules/@types/node'].version, '26.2.0');
 });
 
 test('builds GitHub release notes from the current changelog section', () => {

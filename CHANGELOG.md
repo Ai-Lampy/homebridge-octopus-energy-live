@@ -4,6 +4,16 @@ All notable changes to Octopus Energy Live are documented here.
 
 The project follows [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Changed
+
+- Updated the development and compatibility-test baseline to Homebridge 2.4.0.
+
+### Compatibility
+
+- Verified the plugin with Homebridge 2.4.0, Homebridge UI 5.29.0, and Node.js 24.20.0. No runtime or accessory identity changes are required.
+
 ## [0.5.0] - 2026-08-24
 
 ### Added

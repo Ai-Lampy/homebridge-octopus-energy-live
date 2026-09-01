@@ -72,7 +72,7 @@
     "node-fetch": "^2.6.11"
   },
   "devDependencies": {
-    "homebridge": "^2.3.1",
+    "homebridge": "^2.4.0",
     "@types/node": "^26.2.0",
     "@types/node-fetch": "^2.6.11",
     "@typescript-eslint/eslint-plugin": "^7.8.0",

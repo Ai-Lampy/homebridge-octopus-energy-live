@@ -33,7 +33,7 @@ test('declares the transports and supported Node.js versions', () => {
 });
 
 test('declares Homebridge only as a development dependency', () => {
-  assert.equal(packageJson.devDependencies.homebridge, '^2.3.1');
+  assert.equal(packageJson.devDependencies.homebridge, '^2.4.0');
   assert.equal(packageJson.dependencies?.homebridge, undefined);
   assert.equal(packageJson.optionalDependencies?.homebridge, undefined);
   assert.equal(packageJson.peerDependencies?.homebridge, undefined);
@@ -46,7 +46,7 @@ test('keeps stable release and lockfile metadata aligned', () => {
   assert.equal(packageLock.packages[''].version, packageJson.version);
   assert.equal(packageLock.packages[''].devDependencies.homebridge, packageJson.devDependencies.homebridge);
   assert.equal(packageLock.packages[''].devDependencies['@types/node'], packageJson.devDependencies['@types/node']);
-  assert.equal(packageLock.packages['node_modules/homebridge'].version, '2.3.1');
+  assert.equal(packageLock.packages['node_modules/homebridge'].version, '2.4.0');
   assert.equal(packageLock.packages['node_modules/@types/node'].version, '26.2.0');
 });
 

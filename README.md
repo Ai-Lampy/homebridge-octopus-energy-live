@@ -15,7 +15,7 @@ Homebridge platform plugin that publishes live Octopus Energy electricity readin
 
 ## Requirements
 
-- Node.js 22, 24, or 26 (matching Homebridge 2.3.x)
+- Node.js 22, 24, or 26 (matching Homebridge 2.x)
 - Homebridge 2.2.1 or newer for Apple Home energy data
 - Matter enabled for the main bridge or this plugin's child bridge
 - iOS 27 and a Matter-capable Apple home hub

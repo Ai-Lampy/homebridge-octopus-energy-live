@@ -40,8 +40,8 @@ test('declares Homebridge only as a development dependency', () => {
   assert(!packageJson.bundledDependencies?.includes('homebridge'));
 });
 
-test('keeps beta release and lockfile metadata aligned', () => {
-  assert.equal(packageJson.version, '0.6.0-beta.2');
+test('keeps stable release and lockfile metadata aligned', () => {
+  assert.equal(packageJson.version, '0.6.1');
   assert.equal(packageLock.version, packageJson.version);
   assert.equal(packageLock.packages[''].version, packageJson.version);
   assert.equal(packageLock.packages[''].devDependencies.homebridge, packageJson.devDependencies.homebridge);
@@ -61,6 +61,7 @@ test('builds GitHub release notes from the current changelog section', () => {
   assert(!notes.includes('## [0.5.0-beta.7]'));
   assert(!notes.includes('## [0.5.1]'));
   assert(!notes.includes('## [0.6.0-beta.1]'));
+  assert(!notes.includes('## [0.6.0-beta.2]'));
 });
 
 test('blocks incompatible automated toolchain major upgrades', () => {
@@ -82,6 +83,16 @@ test('blocks incompatible automated toolchain major upgrades', () => {
 test('includes release notes in the published package', () => {
   assert(packageJson.files.includes('CHANGELOG.md'));
   assert(fs.existsSync(path.join(root, 'CHANGELOG.md')));
+});
+
+test('includes a branded Octopus-pink configuration header', () => {
+  assert.match(schema.headerDisplay, /^!\[Octopus Energy Live\]\(https:\/\/raw\.githubusercontent\.com\//);
+  assert(packageJson.files.includes('assets/config-header.svg'));
+  assert(packageJson.files.includes('assets/plugin-icon.png'));
+  const header = fs.readFileSync(path.join(root, 'assets', 'config-header.svg'), 'utf8');
+  assert(header.includes('#f050f8'));
+  assert(header.includes('plugin-icon.png'));
+  assert(header.includes('Octopus Energy Live'));
 });
 
 test('declares the Homebridge donation link as PayPal funding metadata', () => {

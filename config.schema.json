@@ -4,6 +4,7 @@
   "pluginType": "platform",
   "singular": false,
   "strictValidation": false,
+  "headerDisplay": "![Octopus Energy Live](https://raw.githubusercontent.com/Ai-Lampy/homebridge-octopus-energy-live/main/assets/config-header.svg)",
   "schema": {
     "type": "object",
     "properties": {

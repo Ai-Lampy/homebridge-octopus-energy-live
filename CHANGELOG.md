@@ -6,11 +6,36 @@ The project follows [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.6.1] - 2026-09-15
+
+### Added
+
+- Added a branded Homebridge configuration header using the plugin logo, Octopus-pink title text, and a dark-purple background.
+
+### Changed
+
+- Reorganised the configuration screen into **Account Info**, **Electricity**, and **Gas** tabs.
+- Kept required electricity and gas meter details visible while placing live-data overrides, optional export configuration, and experimental Matter options in expandable sections.
+- Updated the development and compatibility-test baseline to Homebridge 2.4.0, Homebridge UI 5.29.0, and Node.js 24.21.0.
+- Updated the Node.js type definitions and migrated the lint toolchain to the current ESLint flat-config format.
+
+### Fixed
+
+- Explicitly bound MPAN, MPRN, meter-serial, credential, polling, and optional-setting controls to their existing configuration paths so the tabbed UI retains current values.
+- Retained the original network error as the cause of an Octopus API timeout, improving diagnostics without changing retry or polling behaviour.
+
+### Compatibility
+
+- Existing configuration keys, values, accessory UUIDs, cached accessories, Matter endpoint identities, polling intervals, and HomeKit services remain unchanged.
+- Electricity remains required. Gas and electricity export remain optional and retain their previous defaults.
+- Revalidated the Octopus REST consumption endpoints, Kraken authentication, Home Mini `smartMeterTelemetry` query, ESME/GSME identifiers, and telemetry rate limit against the current Octopus API documentation.
+
 ## [0.6.0-beta.2] - 2026-09-15
 
 ### Changed
 
 - Kept required electricity and gas meter details visible while placing live-data overrides, export configuration, and experimental Matter options in expandable sections.
+- Added a branded configuration header using the plugin logo, Octopus-pink title text, and a dark-purple background.
 
 ### Fixed
 
@@ -298,6 +323,7 @@ The project follows [Semantic Versioning](https://semver.org/).
 [0.5.0]: https://github.com/Ai-Lampy/homebridge-octopus-energy-live/compare/v0.4.3...v0.5.0
 [0.6.0-beta.1]: https://github.com/Ai-Lampy/homebridge-octopus-energy-live/compare/v0.5.0...v0.6.0-beta.1
 [0.6.0-beta.2]: https://github.com/Ai-Lampy/homebridge-octopus-energy-live/compare/v0.6.0-beta.1...v0.6.0-beta.2
+[0.6.1]: https://github.com/Ai-Lampy/homebridge-octopus-energy-live/compare/v0.5.0...v0.6.1
 [0.5.0-beta.0]: https://github.com/Ai-Lampy/homebridge-octopus-energy-live/compare/v0.4.3...v0.5.0-beta.0
 [0.5.0-beta.1]: https://github.com/Ai-Lampy/homebridge-octopus-energy-live/compare/v0.5.0-beta.0...v0.5.0-beta.1
 [0.5.0-beta.2]: https://github.com/Ai-Lampy/homebridge-octopus-energy-live/compare/v0.5.0-beta.1...v0.5.0-beta.2

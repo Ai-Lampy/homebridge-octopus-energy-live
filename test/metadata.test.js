@@ -40,8 +40,8 @@ test('declares Homebridge only as a development dependency', () => {
   assert(!packageJson.bundledDependencies?.includes('homebridge'));
 });
 
-test('keeps stable release and lockfile metadata aligned', () => {
-  assert.equal(packageJson.version, '0.5.0');
+test('keeps beta release and lockfile metadata aligned', () => {
+  assert.equal(packageJson.version, '0.6.0-beta.1');
   assert.equal(packageLock.version, packageJson.version);
   assert.equal(packageLock.packages[''].version, packageJson.version);
   assert.equal(packageLock.packages[''].devDependencies.homebridge, packageJson.devDependencies.homebridge);
@@ -57,7 +57,9 @@ test('builds GitHub release notes from the current changelog section', () => {
   assert(notes.includes(`## [${packageJson.version}]`));
   assert.match(notes, /### (Added|Changed|Fixed|Documentation|Notes)/);
   assert(!notes.includes('## [0.4.1]'));
+  assert(!notes.includes('## [0.5.0]'));
   assert(!notes.includes('## [0.5.0-beta.7]'));
+  assert(!notes.includes('## [0.5.1]'));
 });
 
 test('blocks incompatible automated toolchain major upgrades', () => {
@@ -100,6 +102,26 @@ test('labels electricity accurately and provides optional gas settings', () => {
   assert.equal(schema.schema.properties.gas.properties.useLiveTelemetry.default, false);
   assert(schema.schema.properties.gas.properties.homeMiniDeviceId);
   assert(!schema.schema.required.includes('gas'));
+});
+
+test('organises settings into account, electricity, and gas tabs without changing config keys', () => {
+  assert.equal(schema.layout.length, 1);
+  assert.equal(schema.layout[0].type, 'tabs');
+
+  const tabs = schema.layout[0].tabs;
+  assert.deepEqual(tabs.map((tab) => tab.title), ['Account Info', 'Electricity', 'Gas']);
+
+  const keysByTab = Object.fromEntries(tabs.map((tab) => [
+    tab.title,
+    tab.items.map((item) => item.key),
+  ]));
+  assert.deepEqual(keysByTab['Account Info'], ['name', 'apiKey', 'accountNumber']);
+  assert.deepEqual(keysByTab.Electricity, ['import', 'homeMiniDeviceId', 'pollSeconds', 'export']);
+  assert.deepEqual(keysByTab.Gas, ['gas']);
+
+  const layoutKeys = tabs.flatMap((tab) => tab.items.map((item) => item.key));
+  assert.deepEqual(new Set(layoutKeys), new Set(Object.keys(schema.schema.properties)));
+  assert.equal(layoutKeys.length, new Set(layoutKeys).size);
 });
 
 test('registers electricity as an outlet and makes the gas workaround opt-in', () => {

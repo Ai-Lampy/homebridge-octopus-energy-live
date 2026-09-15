@@ -15,8 +15,9 @@ Homebridge platform plugin that publishes live Octopus Energy electricity readin
 
 ## Requirements
 
-- Node.js 22, 24, or 26 (matching Homebridge 2.x)
-- Homebridge 2.2.1 or newer for Apple Home energy data
+- Node.js 22, 24, or 26 (Node.js 24.21.0 is the current tested baseline)
+- Homebridge 2.2.1 or newer for Apple Home energy data (tested with Homebridge 2.4.0)
+- Homebridge UI 5.29.0 tested, including its Matter monitoring and child-bridge fixes
 - Matter enabled for the main bridge or this plugin's child bridge
 - iOS 27 and a Matter-capable Apple home hub
 - Octopus API key, electricity MPAN, and electricity meter serial
@@ -70,7 +71,7 @@ Leave the option disabled if Matter devices cannot be discovered on your network
 }
 ```
 
-Electricity import is required; gas and electricity export are optional. The settings screen calls the required section **Electricity Meter**, while its JSON key remains `import` so existing installations and cached Apple Home accessories keep working. The plugin normally discovers the Home Mini meter device ID from `accountNumber`, MPAN, and meter serial. If discovery does not work, `homeMiniDeviceId` can be set manually to the EUI64 of the physical electricity meter connected to the Home Mini. It is not the MPAN, printed meter serial, or Home Mini serial, and is usually formatted as eight hexadecimal byte pairs separated by hyphens.
+Electricity import is required; gas and electricity export are optional. The Homebridge settings screen separates configuration into **Account Info**, **Electricity**, and **Gas** tabs. This changes only the layout: all JSON keys remain unchanged, so existing installations and cached Apple Home accessories keep working. The required electricity section still uses the `import` key. The plugin normally discovers the Home Mini meter device ID from `accountNumber`, MPAN, and meter serial. If discovery does not work, `homeMiniDeviceId` can be set manually to the EUI64 of the physical electricity meter connected to the Home Mini. It is not the MPAN, printed meter serial, or Home Mini serial, and is usually formatted as eight hexadecimal byte pairs separated by hyphens.
 
 Gas uses an **MPRN** (Meter Point Reference Number), not an MPAN. Leave `unit` set to `auto` when an account number is configured. If Octopus cannot return the meter's `consumptionUnits`, choose `m3` for a SMETS2 meter or `kWh` for a SMETS1 meter. Enabling `useLiveTelemetry` attempts to discover the GSME EUI64 automatically. The optional nested `homeMiniDeviceId` setting is only an override for that gas device ID.
 
@@ -125,6 +126,8 @@ Running the manual **Publish to npm** workflow publishes the package version and
 ## Links
 
 - [Octopus Energy API documentation](https://developer.octopus.energy/)
+- [Octopus Energy REST consumption documentation](https://developer.octopus.energy/guides/rest/api-endpoints/)
+- [Octopus Energy smart-meter telemetry schema](https://developer.octopus.energy/graphql/reference/queries/smartmetertelemetry/)
 - [Apple EnergyKit documentation](https://developer.apple.com/documentation/EnergyKit)
 - [Homebridge Matter documentation](https://github.com/homebridge-plugins/homebridge-matter/wiki)
 - [GitHub repository](https://github.com/Ai-Lampy/homebridge-octopus-energy-live)

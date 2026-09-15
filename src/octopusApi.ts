@@ -492,7 +492,11 @@ export class OctopusApiClient {
       return await fetch(url, { ...init, signal: controller.signal });
     } catch (error) {
       if (controller.signal.aborted) {
-        throw new Error(`Octopus API request timed out after ${OCTOPUS_REQUEST_TIMEOUT_MS / 1000} seconds`);
+        const timeoutError = new Error(
+          `Octopus API request timed out after ${OCTOPUS_REQUEST_TIMEOUT_MS / 1000} seconds`,
+        ) as Error & { cause?: unknown };
+        timeoutError.cause = error;
+        throw timeoutError;
       }
       throw error;
     } finally {

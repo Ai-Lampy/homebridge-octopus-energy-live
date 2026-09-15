@@ -148,5 +148,38 @@
     },
     "required": ["apiKey", "import"],
     "additionalProperties": false
-  }
+  },
+  "layout": [
+    {
+      "type": "tabs",
+      "tabs": [
+        {
+          "title": "Account Info",
+          "htmlClass": "px-3 pt-3 pb-0",
+          "items": [
+            { "key": "name", "type": "text" },
+            { "key": "apiKey", "type": "password" },
+            { "key": "accountNumber", "type": "text" }
+          ]
+        },
+        {
+          "title": "Electricity",
+          "htmlClass": "px-3 pt-3 pb-0",
+          "items": [
+            { "key": "import" },
+            { "key": "homeMiniDeviceId", "type": "text" },
+            { "key": "pollSeconds", "type": "number" },
+            { "key": "export" }
+          ]
+        },
+        {
+          "title": "Gas",
+          "htmlClass": "px-3 pt-3 pb-0",
+          "items": [
+            { "key": "gas" }
+          ]
+        }
+      ]
+    }
+  ]
 }

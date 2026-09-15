@@ -6,13 +6,27 @@ The project follows [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.6.0-beta.1] - 2026-09-15
+
 ### Changed
 
+- Reorganised the Homebridge configuration screen into **Account Info**, **Electricity**, and **Gas** tabs.
+- Kept electricity import and export controls together, with optional gas settings isolated on their own tab.
 - Updated the development and compatibility-test baseline to Homebridge 2.4.0.
+- Updated the Node.js type definitions and lint toolchain used by contributors and GitHub Actions.
+- Migrated lint configuration to the current ESLint flat-config format.
+
+### Fixed
+
+- Retained the original network error as the cause of an Octopus API timeout, improving diagnostics without changing retry or polling behaviour.
 
 ### Compatibility
 
-- Verified the plugin with Homebridge 2.4.0, Homebridge UI 5.29.0, and Node.js 24.20.0. No runtime or accessory identity changes are required.
+- The tabbed configuration screen changes layout only. Existing configuration keys, values, accessory UUIDs, cached accessories, and Matter endpoint identities remain unchanged.
+- Electricity remains required. Gas and electricity export remain optional and retain their previous defaults.
+- Verified the plugin with Homebridge 2.4.0, Homebridge UI 5.29.0, and Node.js 24.21.0.
+- Revalidated the REST consumption endpoints, Kraken authentication, Home Mini `smartMeterTelemetry` query, ESME/GSME identifiers, and the documented 125-request-per-user hourly telemetry limit against the current Octopus Energy API documentation.
+- Polling intervals and HomeKit services remain unchanged.
 
 ## [0.5.0] - 2026-08-24
 
@@ -268,6 +282,7 @@ The project follows [Semantic Versioning](https://semver.org/).
 [0.4.2]: https://github.com/Ai-Lampy/homebridge-octopus-energy-live/compare/v0.4.1...v0.4.2
 [0.4.3]: https://github.com/Ai-Lampy/homebridge-octopus-energy-live/compare/v0.4.2...v0.4.3
 [0.5.0]: https://github.com/Ai-Lampy/homebridge-octopus-energy-live/compare/v0.4.3...v0.5.0
+[0.6.0-beta.1]: https://github.com/Ai-Lampy/homebridge-octopus-energy-live/compare/v0.5.0...v0.6.0-beta.1
 [0.5.0-beta.0]: https://github.com/Ai-Lampy/homebridge-octopus-energy-live/compare/v0.4.3...v0.5.0-beta.0
 [0.5.0-beta.1]: https://github.com/Ai-Lampy/homebridge-octopus-energy-live/compare/v0.5.0-beta.0...v0.5.0-beta.1
 [0.5.0-beta.2]: https://github.com/Ai-Lampy/homebridge-octopus-energy-live/compare/v0.5.0-beta.1...v0.5.0-beta.2

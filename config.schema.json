@@ -166,17 +166,74 @@
           "title": "Electricity",
           "htmlClass": "px-3 pt-3 pb-0",
           "items": [
-            { "key": "import" },
-            { "key": "homeMiniDeviceId", "type": "text" },
-            { "key": "pollSeconds", "type": "number" },
-            { "key": "export" }
+            {
+              "type": "fieldset",
+              "title": "Electricity Meter",
+              "items": [
+                "import.name",
+                "import.mpan",
+                "import.meterSerial"
+              ]
+            },
+            {
+              "type": "fieldset",
+              "title": "Live Data Settings",
+              "expandable": true,
+              "expanded": false,
+              "items": [
+                { "key": "homeMiniDeviceId", "type": "text" },
+                { "key": "pollSeconds", "type": "number" }
+              ]
+            },
+            {
+              "type": "fieldset",
+              "title": "Export Meter (Optional)",
+              "expandable": true,
+              "expanded": false,
+              "items": [
+                "export.name",
+                "export.mpan",
+                "export.meterSerial"
+              ]
+            }
           ]
         },
         {
           "title": "Gas",
           "htmlClass": "px-3 pt-3 pb-0",
           "items": [
-            { "key": "gas" }
+            {
+              "type": "fieldset",
+              "title": "Gas Meter Details (Optional)",
+              "items": [
+                "gas.name",
+                "gas.mprn",
+                "gas.meterSerial",
+                "gas.unit"
+              ]
+            },
+            {
+              "type": "fieldset",
+              "title": "Gas Data Settings",
+              "expandable": true,
+              "expanded": false,
+              "items": [
+                "gas.pollMinutes",
+                "gas.useLiveTelemetry",
+                "gas.homeMiniDeviceId"
+              ]
+            },
+            {
+              "type": "fieldset",
+              "title": "Apple Home and Matter (Experimental)",
+              "expandable": true,
+              "expanded": false,
+              "items": [
+                "gas.exposeToMatter",
+                "gas.exposeDailyUsageToMatter",
+                "gas.exposeDailyUsageAccessory"
+              ]
+            }
           ]
         }
       ]

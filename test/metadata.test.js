@@ -41,7 +41,7 @@ test('declares Homebridge only as a development dependency', () => {
 });
 
 test('keeps beta release and lockfile metadata aligned', () => {
-  assert.equal(packageJson.version, '0.6.0-beta.1');
+  assert.equal(packageJson.version, '0.6.0-beta.2');
   assert.equal(packageLock.version, packageJson.version);
   assert.equal(packageLock.packages[''].version, packageJson.version);
   assert.equal(packageLock.packages[''].devDependencies.homebridge, packageJson.devDependencies.homebridge);
@@ -60,6 +60,7 @@ test('builds GitHub release notes from the current changelog section', () => {
   assert(!notes.includes('## [0.5.0]'));
   assert(!notes.includes('## [0.5.0-beta.7]'));
   assert(!notes.includes('## [0.5.1]'));
+  assert(!notes.includes('## [0.6.0-beta.1]'));
 });
 
 test('blocks incompatible automated toolchain major upgrades', () => {
@@ -111,17 +112,87 @@ test('organises settings into account, electricity, and gas tabs without changin
   const tabs = schema.layout[0].tabs;
   assert.deepEqual(tabs.map((tab) => tab.title), ['Account Info', 'Electricity', 'Gas']);
 
-  const keysByTab = Object.fromEntries(tabs.map((tab) => [
-    tab.title,
-    tab.items.map((item) => item.key),
-  ]));
+  const collectLayoutKeys = (items) => items.flatMap((item) => {
+    if (typeof item === 'string') {
+      return [item];
+    }
+    return [item.key, ...collectLayoutKeys(item.items ?? [])].filter(Boolean);
+  });
+  const keysByTab = Object.fromEntries(tabs.map((tab) => [tab.title, collectLayoutKeys(tab.items)]));
   assert.deepEqual(keysByTab['Account Info'], ['name', 'apiKey', 'accountNumber']);
-  assert.deepEqual(keysByTab.Electricity, ['import', 'homeMiniDeviceId', 'pollSeconds', 'export']);
-  assert.deepEqual(keysByTab.Gas, ['gas']);
+  assert.deepEqual(keysByTab.Electricity, [
+    'import.name',
+    'import.mpan',
+    'import.meterSerial',
+    'homeMiniDeviceId',
+    'pollSeconds',
+    'export.name',
+    'export.mpan',
+    'export.meterSerial',
+  ]);
+  assert.deepEqual(keysByTab.Gas, [
+    'gas.name',
+    'gas.mprn',
+    'gas.meterSerial',
+    'gas.unit',
+    'gas.pollMinutes',
+    'gas.useLiveTelemetry',
+    'gas.homeMiniDeviceId',
+    'gas.exposeToMatter',
+    'gas.exposeDailyUsageToMatter',
+    'gas.exposeDailyUsageAccessory',
+  ]);
 
-  const layoutKeys = tabs.flatMap((tab) => tab.items.map((item) => item.key));
-  assert.deepEqual(new Set(layoutKeys), new Set(Object.keys(schema.schema.properties)));
+  const layoutKeys = Object.values(keysByTab).flat();
   assert.equal(layoutKeys.length, new Set(layoutKeys).size);
+});
+
+test('binds the tabbed UI to existing configuration paths without migration', () => {
+  const existingConfig = {
+    name: 'Octopus Energy Live',
+    apiKey: 'existing-api-key',
+    accountNumber: 'A-12345678',
+    pollSeconds: 60,
+    homeMiniDeviceId: '11-22-33-44-55-66-77-88',
+    import: {
+      name: 'Existing Electricity Meter',
+      mpan: '1234567890123',
+      meterSerial: 'ELECTRIC-SERIAL',
+    },
+    gas: {
+      name: 'Existing Gas Meter',
+      mprn: '1234567890',
+      meterSerial: 'GAS-SERIAL',
+      unit: 'm3',
+      exposeToMatter: true,
+      exposeDailyUsageToMatter: true,
+      exposeDailyUsageAccessory: true,
+      pollMinutes: 5,
+      useLiveTelemetry: true,
+      homeMiniDeviceId: '88-77-66-55-44-33-22-11',
+    },
+    export: {
+      name: 'Existing Export Meter',
+      mpan: '9876543210987',
+      meterSerial: 'EXPORT-SERIAL',
+    },
+  };
+  const readPath = (object, key) => key.split('.').reduce((value, part) => value?.[part], object);
+  const tabs = schema.layout[0].tabs;
+  const collectLayoutKeys = (items) => items.flatMap((item) => {
+    if (typeof item === 'string') {
+      return [item];
+    }
+    return [item.key, ...collectLayoutKeys(item.items ?? [])].filter(Boolean);
+  });
+  const layoutKeys = tabs.flatMap((tab) => collectLayoutKeys(tab.items));
+
+  for (const key of layoutKeys) {
+    assert.notEqual(readPath(existingConfig, key), undefined, `${key} is not bound to existing config`);
+  }
+  assert.equal(readPath(existingConfig, 'import.mpan'), '1234567890123');
+  assert.equal(readPath(existingConfig, 'gas.mprn'), '1234567890');
+  assert.equal(readPath(existingConfig, 'gas.meterSerial'), 'GAS-SERIAL');
 });
 
 test('registers electricity as an outlet and makes the gas workaround opt-in', () => {

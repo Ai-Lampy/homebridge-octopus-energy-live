@@ -6,6 +6,20 @@ The project follows [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.6.0-beta.2] - 2026-09-15
+
+### Changed
+
+- Kept required electricity and gas meter details visible while placing live-data overrides, export configuration, and experimental Matter options in expandable sections.
+
+### Fixed
+
+- Explicitly declared the nested MPAN, MPRN, and meter-serial controls so Homebridge UI renders and retains every existing meter value in the tabbed configuration screen.
+
+### Compatibility
+
+- Uses the existing configuration paths without migration. API credentials, account number, meter identifiers, accessory names, polling settings, and enabled options remain unchanged.
+
 ## [0.6.0-beta.1] - 2026-09-15
 
 ### Changed
@@ -283,6 +297,7 @@ The project follows [Semantic Versioning](https://semver.org/).
 [0.4.3]: https://github.com/Ai-Lampy/homebridge-octopus-energy-live/compare/v0.4.2...v0.4.3
 [0.5.0]: https://github.com/Ai-Lampy/homebridge-octopus-energy-live/compare/v0.4.3...v0.5.0
 [0.6.0-beta.1]: https://github.com/Ai-Lampy/homebridge-octopus-energy-live/compare/v0.5.0...v0.6.0-beta.1
+[0.6.0-beta.2]: https://github.com/Ai-Lampy/homebridge-octopus-energy-live/compare/v0.6.0-beta.1...v0.6.0-beta.2
 [0.5.0-beta.0]: https://github.com/Ai-Lampy/homebridge-octopus-energy-live/compare/v0.4.3...v0.5.0-beta.0
 [0.5.0-beta.1]: https://github.com/Ai-Lampy/homebridge-octopus-energy-live/compare/v0.5.0-beta.0...v0.5.0-beta.1
 [0.5.0-beta.2]: https://github.com/Ai-Lampy/homebridge-octopus-energy-live/compare/v0.5.0-beta.1...v0.5.0-beta.2

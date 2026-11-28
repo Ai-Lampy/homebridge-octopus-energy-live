@@ -2,6 +2,7 @@ import { Characteristic, CharacteristicValue, PlatformAccessory, Service, WithUU
 import { OctopusEnergyLivePlatform } from './platform';
 import { OctopusApiClient } from './octopusApi';
 import { buildMatterCumulativeEnergyMeasurement, livePowerForSide, wattsToMatterMilliwatts } from './energy';
+import { lifetimeEnergy } from './telemetry';
 
 export type MeterSide = 'import' | 'export';
 
@@ -17,6 +18,7 @@ interface MeterReading {
   totalKWh: number;
   readAt?: Date;
   isLifetimeTotal: boolean;
+  source: 'live' | 'interval';
 }
 
 export class OctopusMeterAccessory {
@@ -107,6 +109,8 @@ export class OctopusMeterAccessory {
       this.lastTotalKWh = reading.totalKWh;
       this.accessory.context.lastWatts = reading.watts;
       this.accessory.context.totalKWh = reading.totalKWh;
+      this.accessory.context.readingSource = reading.source;
+      this.accessory.context.lastReadAt = reading.readAt?.toISOString();
       this.updateCachedCharacteristics();
       try {
         await this.updateMatter(reading);
@@ -123,11 +127,22 @@ export class OctopusMeterAccessory {
         }
         this.matterUpdateFailed = true;
       }
-      const source = this.homeMiniDeviceId ? 'Home Mini live telemetry' : 'half-hourly REST data';
+      const source = reading.source === 'live' ? 'Home Mini live telemetry' : 'delayed half-hourly REST data (not live power)';
       this.platform.log.debug(
         `${this.meter.name} updated from ${source}: ${reading.watts.toFixed(2)} W, ${reading.totalKWh.toFixed(3)} kWh`,
       );
     } catch (error) {
+      if (this.platform.api.matter && this.matterUuid) {
+        try {
+          await this.platform.api.matter.updateAccessoryState(
+            this.matterUuid,
+            this.platform.api.matter.clusterNames.ElectricalPowerMeasurement,
+            { activePower: null },
+          );
+        } catch {
+          this.platform.log.debug('Could not mark unavailable Matter power.');
+        }
+      }
       this.platform.log.warn(`Refresh failed for ${this.meter.name}: ${error instanceof Error ? error.message : String(error)}`);
     } finally {
       this.refreshInProgress = false;
@@ -147,6 +162,7 @@ export class OctopusMeterAccessory {
             totalKWh: Math.max(0, totalWh / 1000),
             readAt: telemetry.readAt ? new Date(telemetry.readAt) : undefined,
             isLifetimeTotal: true,
+            source: 'live',
           };
         }
 
@@ -158,6 +174,7 @@ export class OctopusMeterAccessory {
           totalKWh: interval.totalKWh,
           readAt: telemetry.readAt ? new Date(telemetry.readAt) : interval.periodEnd,
           isLifetimeTotal: false,
+          source: 'live',
         };
       } catch (error) {
         this.platform.log.warn(
@@ -172,6 +189,7 @@ export class OctopusMeterAccessory {
       totalKWh: interval.totalKWh,
       readAt: interval.periodEnd,
       isLifetimeTotal: false,
+      source: 'interval',
     };
   }
 
@@ -189,11 +207,16 @@ export class OctopusMeterAccessory {
     await matter.updateAccessoryState(
       this.matterUuid,
       matter.clusterNames.ElectricalPowerMeasurement,
-      { activePower: wattsToMatterMilliwatts(reading.watts) },
+      { activePower: reading.source === 'live' ? wattsToMatterMilliwatts(reading.watts) : null },
     );
 
+    const previous = this.accessory.context.matterLifetimeKWh as number | undefined;
+    const total = lifetimeEnergy(previous, reading.totalKWh, reading.isLifetimeTotal);
+    if (total === undefined || !reading.isLifetimeTotal) {
+      return;
+    }
     const energy = buildMatterCumulativeEnergyMeasurement(
-      reading.totalKWh,
+      total,
       reading.readAt,
       reading.isLifetimeTotal,
     );
@@ -203,5 +226,7 @@ export class OctopusMeterAccessory {
       matter.clusterNames.ElectricalEnergyMeasurement,
       { [attribute]: energy },
     );
+    this.accessory.context.matterLifetimeKWh = total;
+    this.platform.api.updatePlatformAccessories([this.accessory]);
   }
 }

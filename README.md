@@ -1,5 +1,13 @@
 # Octopus Energy Live for Homebridge
 
+## 0.6.2-beta.1 testing
+
+This maintenance beta uses the documented Kraken API host. Existing settings and accessory identities are retained. Install the `beta` npm tag, not `latest`.
+
+Matter power is unavailable until fresh live telemetry arrives, and during delayed REST fallback. Daily REST electricity totals do not replace lifetime energy registers. Older custom HomeKit characteristics retain interval averages; they are not live demand. The plugin budgets telemetry at 110 requests per rolling hour and pauses telemetry for an hour after provider throttling. Other integrations sharing your Octopus user also consume the provider's allowance.
+
+Before promoting to stable, check electricity live watts, API authentication, fallback/recovery, restart identity preservation, and gas totals across midnight. Gas calculation and optional daily kWh-to-kW display proxy are unchanged. Never publish credentials or full meter identifiers in diagnostics.
+
 [![npm version](https://img.shields.io/npm/v/homebridge-octopus-energy-live?style=for-the-badge&logo=npm)](https://www.npmjs.com/package/homebridge-octopus-energy-live) [![npm downloads](https://img.shields.io/npm/dt/homebridge-octopus-energy-live?style=for-the-badge&label=downloads)](https://www.npmjs.com/package/homebridge-octopus-energy-live) [![verified-by-homebridge](https://img.shields.io/badge/homebridge-verified-blueviolet?color=%23491F59&style=for-the-badge&logoColor=%23FFFFFF&logo=homebridge)](https://github.com/homebridge/homebridge/wiki/Verified-Plugins)
 
 Homebridge platform plugin that publishes live Octopus Energy electricity readings as a Matter energy-monitoring outlet. Optional gas readings remain available through classic HomeKit-compatible meter characteristics. Experimental Home Mini gas telemetry and a gas-to-Matter outlet can be enabled with the limitations described below.

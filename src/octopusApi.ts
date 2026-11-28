@@ -14,7 +14,9 @@ import {
   parseGasTelemetry,
 } from './gas';
 
-const GRAPHQL_URL = 'https://api.octopus.energy/v1/graphql/';
+import { isFreshTelemetry, normaliseDeviceId, OCTOPUS_API_BASE } from './telemetry';
+
+const GRAPHQL_URL = `${OCTOPUS_API_BASE}/graphql/`;
 const OCTOPUS_REQUEST_TIMEOUT_MS = 20_000;
 
 interface ConsumptionRecord {
@@ -106,6 +108,8 @@ export class OctopusApiClient {
   private token?: string;
   private tokenPromise?: Promise<string>;
   private tokenExpiresAt = 0;
+  private telemetryBlockedUntil = 0;
+  private readonly telemetryRequests: number[] = [];
   private readonly telemetryCache = new Map<string, { fetchedAt: number; promise: Promise<LiveTelemetry> }>();
   private readonly intervalCache = new Map<string, { fetchedAt: number; promise: Promise<IntervalReading> }>();
   private readonly gasIntervalCache = new Map<string, { fetchedAt: number; promise: Promise<GasIntervalReading> }>();
@@ -213,7 +217,8 @@ export class OctopusApiClient {
   public async fetchLiveTelemetry(deviceId: string): Promise<LiveTelemetry> {
     // Import and export accessories poll together. Coalesce their requests so a
     // Home Mini only consumes one Octopus API call per polling interval.
-    const cacheKey = deviceId.trim().toUpperCase();
+    deviceId = normaliseDeviceId(deviceId);
+    const cacheKey = deviceId;
     const cached = this.telemetryCache.get(cacheKey);
     if (cached && Date.now() - cached.fetchedAt < 5000) {
       return cached.promise;
@@ -233,6 +238,7 @@ export class OctopusApiClient {
   }
 
   public async fetchGasLiveReading(deviceId: string): Promise<GasIntervalReading> {
+    deviceId = normaliseDeviceId(deviceId);
     const now = new Date();
     const query = `
       query SmartGasMeterTelemetry(
@@ -395,6 +401,9 @@ export class OctopusApiClient {
     }
 
     const demandWatts = this.parseNumber(reading.demand, 'demand');
+    if (!isFreshTelemetry(reading.readAt)) {
+      throw new Error('Live electricity telemetry is missing a valid timestamp or is older than five minutes');
+    }
     return {
       readAt: reading.readAt,
       demandWatts,
@@ -404,6 +413,17 @@ export class OctopusApiClient {
   }
 
   private async fetchGraphQL<T>(query: string, variables: Record<string, unknown>): Promise<GraphQLResponse<T>> {
+    const telemetry = query.includes('smartMeterTelemetry(');
+    if (telemetry) {
+      const now = Date.now();
+      while (this.telemetryRequests.length && this.telemetryRequests[0] <= now - 3_600_000) {
+        this.telemetryRequests.shift();
+      }
+      if (now < this.telemetryBlockedUntil || this.telemetryRequests.length >= 110) {
+        throw new Error('Telemetry request budget exhausted or rate-limit cooldown active; using interval data');
+      }
+      this.telemetryRequests.push(now);
+    }
     const token = await this.getToken();
     const response = await this.fetchWithTimeout(GRAPHQL_URL, {
       method: 'POST',
@@ -414,10 +434,17 @@ export class OctopusApiClient {
       body: JSON.stringify({ query, variables }),
     });
 
+    if (telemetry && response.status === 429) {
+      this.telemetryBlockedUntil = Date.now() + 60 * 60_000;
+    }
     if (!response.ok) {
       throw new Error(`Octopus GraphQL HTTP ${response.status}`);
     }
-    return response.json() as Promise<GraphQLResponse<T>>;
+    const payload = await response.json() as GraphQLResponse<T>;
+    if (telemetry && payload.errors?.some((error) => /too many requests|rate.?limit/i.test(error.message ?? ''))) {
+      this.telemetryBlockedUntil = Date.now() + 60 * 60_000;
+    }
+    return payload;
   }
 
   private async getToken(): Promise<string> {
@@ -505,6 +532,9 @@ export class OctopusApiClient {
   }
 
   private parseNumber(value: string | number | undefined, field: string): number {
+    if (value == null || String(value).trim() === '') {
+      throw new Error(`Live telemetry ${field} is missing or invalid`);
+    }
     const parsed = typeof value === 'number' ? value : Number(value);
     if (!Number.isFinite(parsed)) {
       throw new Error(`Live telemetry ${field} is missing or invalid`);
@@ -513,7 +543,7 @@ export class OctopusApiClient {
   }
 
   private parseOptionalNumber(value: string | number | undefined): number | undefined {
-    if (value === undefined) {
+    if (value == null || String(value).trim() === '') {
       return undefined;
     }
     const parsed = typeof value === 'number' ? value : Number(value);

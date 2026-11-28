@@ -6,6 +6,28 @@ The project follows [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.6.2-beta.1] - 2026-11-28
+
+### Changed
+
+- Migrated REST and GraphQL requests to the documented api.oegb-kraken.energy host. Existing credentials and configuration keys are retained.
+- Limited combined electricity/gas telemetry to 110 requests per rolling hour per plugin instance, including retries. Rate-limit responses pause telemetry for one hour while REST fallback remains available.
+- Matter active power is unavailable during REST fallback, on failed refreshes, and at startup until fresh live telemetry arrives. REST interval averages are not presented as live power.
+
+### Fixed
+
+- Reject electricity telemetry with invalid timestamps, timestamps more than one minute in the future, or readings older than five minutes.
+- Validate and normalise smart-meter EUI64 overrides and reject null/empty numeric telemetry rather than treating it as zero.
+- Preserve the last confirmed lifetime electricity register through fallback. Daily REST totals no longer replace Matter cumulative energy. Until a lifetime register is available, cumulative energy remains at its initial value.
+- Log the actual electricity source and avoid reporting successful daily-gas Matter publication after a failed update.
+
+### Notes
+
+- Beta only. Accessory UUIDs and configuration paths are unchanged. No cache clearing or re-pairing is intended.
+- Gas calculations remain experimental and unchanged pending representative API samples. Daily gas power-display proxies remain opt-in, not real gas power.
+- The request budget cannot account for Home Assistant or other apps sharing the same Octopus user. Backoff responds to provider throttling.
+- Requires live beta testing of authentication, fallback/recovery, and a full UK-day gas comparison before stable release.
+
 ## [0.6.1] - 2026-09-15
 
 ### Added

@@ -41,7 +41,7 @@ test('declares Homebridge only as a development dependency', () => {
 });
 
 test('keeps stable release and lockfile metadata aligned', () => {
-  assert.equal(packageJson.version, '0.6.1');
+  assert.equal(packageJson.version, '0.6.2-beta.1');
   assert.equal(packageLock.version, packageJson.version);
   assert.equal(packageLock.packages[''].version, packageJson.version);
   assert.equal(packageLock.packages[''].devDependencies.homebridge, packageJson.devDependencies.homebridge);

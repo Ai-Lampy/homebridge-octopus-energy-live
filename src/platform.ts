@@ -591,8 +591,12 @@ export class OctopusEnergyLivePlatform implements DynamicPlatformPlugin {
 
     const uuid = this.electricityMatterUuid(side, meter);
     const existing = this.matterAccessories.find((accessory) => accessory.UUID === uuid);
-    const lastWatts = typeof hapAccessory.context.lastWatts === 'number' ? hapAccessory.context.lastWatts : 0;
-    const totalKWh = typeof hapAccessory.context.totalKWh === 'number' ? hapAccessory.context.totalKWh : 0;
+    const totalKWh = typeof hapAccessory.context.matterLifetimeKWh === 'number'
+      ? hapAccessory.context.matterLifetimeKWh
+      : typeof hapAccessory.context.totalKWh === 'number' ? hapAccessory.context.totalKWh : 0;
+    // Preserve the old endpoint's value during upgrade; only a confirmed
+    // lifetime reading may advance it after registration.
+    hapAccessory.context.matterLifetimeKWh = totalKWh;
     const energyAttribute = side === 'import' ? 'cumulativeEnergyImported' : 'cumulativeEnergyExported';
     const matterAccessory: MatterAccessory = existing ?? {
       UUID: uuid,
@@ -612,7 +616,7 @@ export class OctopusEnergyLivePlatform implements DynamicPlatformPlugin {
     matterAccessory.context = { side, mpan: meter.mpan, meterSerial: meter.meterSerial };
     matterAccessory.clusters = {
       onOff: { onOff: true },
-      electricalPowerMeasurement: { activePower: wattsToMatterMilliwatts(lastWatts) },
+      electricalPowerMeasurement: { activePower: null },
       electricalEnergyMeasurement: {
         [energyAttribute]: { energy: kWhToMatterMilliwattHours(totalKWh) },
       },

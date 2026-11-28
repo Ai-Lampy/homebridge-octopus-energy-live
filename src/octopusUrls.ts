@@ -1,3 +1,5 @@
+import { OCTOPUS_API_BASE } from './telemetry';
+
 export interface TodayUrlOptions {
   now?: Date;
   pageSize?: number;
@@ -36,7 +38,7 @@ function buildConsumptionUrl(
 ): string {
   const safeMeterPoint = encodeURIComponent(meterPoint.trim());
   const safeSerial = encodeURIComponent(serial.trim());
-  return `https://api.octopus.energy/v1/${fuel}-meter-points/${safeMeterPoint}/meters/${safeSerial}/consumption/?${params.toString()}`;
+  return `${OCTOPUS_API_BASE}/${fuel}-meter-points/${safeMeterPoint}/meters/${safeSerial}/consumption/?${params.toString()}`;
 }
 
 export function buildLatestConsumptionUrl(mpan: string, serial: string): string {

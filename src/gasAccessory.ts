@@ -184,7 +184,7 @@ export class OctopusGasMeterAccessory {
           this.matterCumulativeKWh.toFixed(3)
         } kWh tracked cumulatively`,
       );
-      if (this.dailyMatterUuid) {
+      if (this.dailyMatterUuid && !this.matterUpdateFailed) {
         this.platform.log.info(`Gas Used Today published to Matter: ${todayKWh.toFixed(3)} kWh.`);
       }
     } catch (error) {
